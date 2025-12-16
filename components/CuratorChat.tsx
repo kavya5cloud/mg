@@ -1,0 +1,1 @@
+const CuratorChat = () => null; export default CuratorChat;
