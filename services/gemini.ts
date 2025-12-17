@@ -1,1 +1,0 @@
-export const initChat = () => null; export const sendMessageToCurator = async () => "";
