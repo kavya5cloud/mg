@@ -1,0 +1,99 @@
+
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MOCA Gandhinagar | Museum of Contemporary Art</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;800&family=Playfair+Display:ital,wght@0,400;0,700;1,400&display=swap');
+      
+      body {
+        font-family: 'Inter', sans-serif;
+        background-color: #ffffff;
+        color: #000000;
+      }
+      
+      h1, h2, h3, h4, h5, h6 {
+        letter-spacing: -0.02em;
+      }
+
+      .serif {
+        font-family: 'Playfair Display', serif;
+      }
+
+      /* Custom scrollbar for chat */
+      .scrollbar-hide::-webkit-scrollbar {
+          display: none;
+      }
+      .scrollbar-hide {
+          -ms-overflow-style: none;
+          scrollbar-width: none;
+      }
+
+      /* Print Styles for Professional Ticket Output */
+      @media print {
+        body {
+          margin: 0;
+          padding: 0;
+          background-color: white;
+        }
+        
+        /* Hide everything by default */
+        body * {
+          visibility: hidden;
+        }
+
+        /* Make ticket visible */
+        #printable-ticket, #printable-ticket * {
+          visibility: visible;
+        }
+
+        /* Position ticket specifically for A4/Letter printing */
+        #printable-ticket {
+          position: absolute;
+          left: 50%;
+          top: 0;
+          transform: translateX(-50%);
+          width: 700px !important;
+          max-width: 100%;
+          margin-top: 20px;
+          padding: 0;
+          box-shadow: none !important;
+          border: 2px solid #000 !important;
+          border-radius: 24px !important;
+          overflow: hidden; /* Ensure rounded corners print */
+        }
+
+        .no-print {
+          display: none !important;
+        }
+        
+        /* Ensure background colors print */
+        * {
+          -webkit-print-color-adjust: exact !important;
+          print-color-adjust: exact !important;
+        }
+      }
+    </style>
+  <script type="importmap">
+{
+  "imports": {
+    "react": "https://aistudiocdn.com/react@^19.2.0",
+    "react/": "https://aistudiocdn.com/react@^19.2.0/",
+    "lucide-react": "https://aistudiocdn.com/lucide-react@^0.555.0",
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
+    "react-router-dom": "https://aistudiocdn.com/react-router-dom@^7.10.0",
+    "html2canvas": "https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.esm.js",
+    "@google/genai": "https://esm.sh/@google/genai@^1.33.0"
+  }
+}
+</script>
+<link rel="stylesheet" href="/index.css">
+</head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/index.tsx"></script>
+  </body>
+</html>
