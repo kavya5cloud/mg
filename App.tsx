@@ -5,7 +5,7 @@ import Header from './components/Header';
 import Hero from './components/Hero';
 import MuseumGalleryScroll from './components/MuseumGalleryScroll';
 import CollectionHighlights from './components/CollectionHighlights';
-import ShopHighlights from './components/ShopHighlights';
+import ShopHighlights from './components/ShopHighlights'; 
 import VisitInfo from './components/VisitInfo';
 import Footer from './components/Footer';
 import ExhibitionsPage from './components/ExhibitionsPage';
