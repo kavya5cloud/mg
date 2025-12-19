@@ -1,6 +1,6 @@
 
 import React, { useEffect, useState } from 'react';
-import { Clock, MapPin, Calendar, ExternalLink, Ticket, Car, Accessibility } from 'lucide-react';
+import { Clock, MapPin, Calendar, ExternalLink, Ticket, Car } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { getPageAssets } from '../services/data';
 import { PageAssets } from '../types';
@@ -54,7 +54,7 @@ const VisitInfo: React.FC = () => {
                     </div>
 
                     {/* Logistics Row */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <div className="grid grid-cols-1 gap-8">
                         {/* Parking */}
                         <div className="flex flex-col items-start">
                              <div className="flex items-center gap-4 mb-4">
@@ -62,14 +62,6 @@ const VisitInfo: React.FC = () => {
                                  <h4 className="text-sm font-black uppercase tracking-widest">Parking</h4>
                              </div>
                              <p className="text-gray-500 text-sm leading-relaxed">{assets.visit.parkingInfo}</p>
-                        </div>
-                        {/* Accessibility */}
-                        <div className="flex flex-col items-start">
-                             <div className="flex items-center gap-4 mb-4">
-                                 <Accessibility className="w-5 h-5 text-black" />
-                                 <h4 className="text-sm font-black uppercase tracking-widest">Accessibility</h4>
-                             </div>
-                             <p className="text-gray-500 text-sm leading-relaxed">{assets.visit.accessibilityInfo}</p>
                         </div>
                     </div>
                 </div>
