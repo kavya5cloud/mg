@@ -112,10 +112,16 @@ const migrateData = async () => {
         if (localData) {
             try {
                 const parsed = JSON.parse(localData);
-                const tx = db.transaction(STORE_NAME, 'readwrite');
-                tx.objectStore(STORE_NAME).put(parsed, key);
-                localStorage.removeItem(key); // Cleanup
+                // CRITICAL: Await the database write before removing from localStorage
+                await new Promise<void>((resolve, reject) => {
+                    const tx = db.transaction(STORE_NAME, 'readwrite');
+                    tx.objectStore(STORE_NAME).put(parsed, key);
+                    tx.oncomplete = () => resolve();
+                    tx.onerror = () => reject();
+                });
+                localStorage.removeItem(key); 
                 cache[key] = parsed;
+                console.debug(`Migrated ${key} to IndexedDB`);
             } catch (e) {
                 console.error(`Migration failed for ${key}`, e);
             }
@@ -128,37 +134,46 @@ export const bootstrapMuseumData = async () => {
     await initDB();
     await migrateData();
     const db = await initDB();
-    const tx = db.transaction(STORE_NAME, 'readonly');
-    const store = tx.objectStore(STORE_NAME);
     
-    return new Promise<void>((resolve) => {
-        const request = store.getAllKeys();
-        request.onsuccess = () => {
-            const keys = request.result as string[];
-            let completed = 0;
-            if (keys.length === 0) resolve();
-            keys.forEach(key => {
-                const getReq = store.get(key);
-                getReq.onsuccess = () => {
-                    cache[key] = getReq.result;
-                    completed++;
-                    if (completed === keys.length) resolve();
-                };
-            });
+    return new Promise<void>((resolve, reject) => {
+        const tx = db.transaction(STORE_NAME, 'readonly');
+        const store = tx.objectStore(STORE_NAME);
+        const request = store.openCursor();
+        
+        request.onsuccess = (e: any) => {
+            const cursor = e.target.result;
+            if (cursor) {
+                cache[cursor.key] = cursor.value;
+                cursor.continue();
+            } else {
+                resolve();
+            }
         };
+        request.onerror = () => reject(new Error("Failed to load museum data from IndexedDB"));
     });
 };
 
 const getFromCache = <T>(key: string, defaultValue: T): T => {
-    if (cache[key] !== undefined) return cache[key];
+    if (cache[key] !== undefined && cache[key] !== null) return cache[key];
     return defaultValue;
 };
 
-const saveToDB = async (key: string, data: any) => {
-    cache[key] = data;
-    const db = await initDB();
-    const tx = db.transaction(STORE_NAME, 'readwrite');
-    tx.objectStore(STORE_NAME).put(data, key);
+const saveToDB = (key: string, data: any): Promise<void> => {
+    cache[key] = data; // Update memory cache immediately
+    return new Promise(async (resolve, reject) => {
+        try {
+            const db = await initDB();
+            const tx = db.transaction(STORE_NAME, 'readwrite');
+            tx.objectStore(STORE_NAME).put(data, key);
+            tx.oncomplete = () => {
+                console.debug(`Successfully saved ${key} to persistence`);
+                resolve();
+            };
+            tx.onerror = () => reject(new Error(`Failed to save ${key}`));
+        } catch (e) {
+            reject(e);
+        }
+    });
 };
 
 export const getStorageUsage = () => {
@@ -176,51 +191,51 @@ export const clearAllAppData = async () => {
 };
 
 export const getPageAssets = (): PageAssets => getFromCache('moca_page_assets', DEFAULT_PAGE_ASSETS);
-export const savePageAssets = (data: PageAssets) => { saveToDB('moca_page_assets', data); return true; };
+export const savePageAssets = (data: PageAssets) => saveToDB('moca_page_assets', data);
 
 export const getExhibitions = (): Exhibition[] => getFromCache('moca_exhibitions', EXHIBITIONS);
-export const saveExhibitions = (data: Exhibition[]) => { saveToDB('moca_exhibitions', data); return true; };
+export const saveExhibitions = (data: Exhibition[]) => saveToDB('moca_exhibitions', data);
 
 export const getArtworks = (): Artwork[] => getFromCache('moca_artworks', ARTWORKS);
-export const saveArtworks = (data: Artwork[]) => { saveToDB('moca_artworks', data); return true; };
+export const saveArtworks = (data: Artwork[]) => saveToDB('moca_artworks', data);
 
 export const getEvents = (): Event[] => getFromCache('moca_events', DEFAULT_EVENTS);
-export const saveEvents = (data: Event[]) => { saveToDB('moca_events', data); return true; };
+export const saveEvents = (data: Event[]) => saveToDB('moca_events', data);
 
 export const getCollectables = (): Collectable[] => getFromCache('moca_collectables', COLLECTABLES);
-export const saveCollectables = (data: Collectable[]) => { saveToDB('moca_collectables', data); return true; };
+export const saveCollectables = (data: Collectable[]) => saveToDB('moca_collectables', data);
 
 export const getShopOrders = (): ShopOrder[] => getFromCache('moca_shop_orders', []);
-export const saveShopOrder = (order: ShopOrder) => {
+export const saveShopOrder = async (order: ShopOrder) => {
     const orders = getShopOrders();
-    saveToDB('moca_shop_orders', [order, ...orders]);
+    await saveToDB('moca_shop_orders', [order, ...orders]);
 };
 
-export const updateShopOrders = (orders: ShopOrder[]) => { saveToDB('moca_shop_orders', orders); return true; };
+export const updateShopOrders = (orders: ShopOrder[]) => saveToDB('moca_shop_orders', orders);
 
 export const getBookings = (): Booking[] => getFromCache('moca_bookings', []);
-export const saveBooking = (booking: Booking) => {
+export const saveBooking = async (booking: Booking) => {
     const bookings = getBookings();
-    saveToDB('moca_bookings', [booking, ...bookings]);
+    await saveToDB('moca_bookings', [booking, ...bookings]);
 };
 
 export const getHomepageGallery = () => getFromCache('moca_homepage_gallery', DEFAULT_GALLERY);
-export const saveHomepageGallery = (data: any) => { saveToDB('moca_homepage_gallery', data); return true; };
-export const resetHomepageGallery = () => { saveToDB('moca_homepage_gallery', DEFAULT_GALLERY); return DEFAULT_GALLERY; };
+export const saveHomepageGallery = (data: any) => saveToDB('moca_homepage_gallery', data);
+export const resetHomepageGallery = () => saveToDB('moca_homepage_gallery', DEFAULT_GALLERY);
 
 export const getReviews = (itemId: string): Review[] => {
     const all = getFromCache<Review[]>('moca_reviews', []);
     return all.filter(r => r.itemId === itemId).sort((a, b) => b.timestamp - a.timestamp);
 };
-export const addReview = (review: Review) => {
+export const addReview = async (review: Review) => {
     const all = getFromCache<Review[]>('moca_reviews', []);
-    saveToDB('moca_reviews', [review, ...all]);
+    await saveToDB('moca_reviews', [review, ...all]);
 };
 
 export const getNewsletterEmails = (): string[] => getFromCache('moca_newsletter', []);
-export const saveNewsletterEmail = (email: string) => {
+export const saveNewsletterEmail = async (email: string) => {
     const emails = getNewsletterEmails();
-    if (!emails.includes(email)) saveToDB('moca_newsletter', [email, ...emails]);
+    if (!emails.includes(email)) await saveToDB('moca_newsletter', [email, ...emails]);
 };
 
 export const getStaffMode = (): boolean => getFromCache('moca_staff_mode', false);
