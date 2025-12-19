@@ -70,34 +70,62 @@ const DEFAULT_PAGE_ASSETS: PageAssets = {
   }
 };
 
-// Reliable default images for the gallery
 const VALIDATE_ASSETS = (data: any): data is PageAssets => {
     return data && data.about && data.about.hero && Array.isArray(data.about.team);
 };
 
-// Helper to manage localStorage
+// Helper to calculate used storage in MB
+export const getStorageUsage = () => {
+    let total = 0;
+    for (const x in localStorage) {
+        if (localStorage.hasOwnProperty(x)) {
+            total += ((localStorage[x].length + x.length) * 2);
+        }
+    }
+    return (total / 1024 / 1024).toFixed(2);
+};
+
+// Clear all app data
+export const clearAllAppData = () => {
+    const keys = Object.keys(localStorage);
+    keys.forEach(key => {
+        if (key.startsWith('moca_')) {
+            localStorage.removeItem(key);
+        }
+    });
+    window.location.reload();
+};
+
+// Helper to manage localStorage with Quota Handling
 const getStorage = <T>(key: string, defaultData: T[] | T): T => {
     try {
         const stored = localStorage.getItem(key);
         if (stored) {
             const parsed = JSON.parse(stored);
-            // If it's an array and empty, but default isn't, maybe we want default?
-            // Special check for essential lists
             if (Array.isArray(parsed) && parsed.length === 0 && Array.isArray(defaultData) && defaultData.length > 0) {
                 return defaultData as T;
             }
             return parsed;
         }
-        localStorage.setItem(key, JSON.stringify(defaultData));
+        setStorage(key, defaultData);
         return defaultData as T;
     } catch (e) {
-        console.error("Storage error", e);
+        console.error("Storage read error", e);
         return defaultData as T;
     }
 };
 
-const setStorage = <T>(key: string, data: T) => {
-    localStorage.setItem(key, JSON.stringify(data));
+const setStorage = <T>(key: string, data: T): boolean => {
+    try {
+        localStorage.setItem(key, JSON.stringify(data));
+        return true;
+    } catch (e) {
+        if (e instanceof DOMException && e.name === 'QuotaExceededError') {
+            alert("Storage Quota Exceeded! The browser's 5MB limit has been reached. Please upload smaller photos or clear old orders/data in the Admin Panel.");
+        }
+        console.error("Storage write error", e);
+        return false;
+    }
 };
 
 export const getPageAssets = (): PageAssets => {
@@ -132,14 +160,14 @@ export const saveBooking = (booking: Booking) => {
 export const getHomepageGallery = () => {
     const data = getStorage('moca_homepage_gallery', DEFAULT_GALLERY);
     if (!Array.isArray(data) || data.length === 0 || !data[0].images) {
-        localStorage.setItem('moca_homepage_gallery', JSON.stringify(DEFAULT_GALLERY));
+        setStorage('moca_homepage_gallery', DEFAULT_GALLERY);
         return DEFAULT_GALLERY;
     }
     return data;
 };
 export const saveHomepageGallery = (data: any) => setStorage('moca_homepage_gallery', data);
 export const resetHomepageGallery = () => {
-    localStorage.setItem('moca_homepage_gallery', JSON.stringify(DEFAULT_GALLERY));
+    setStorage('moca_homepage_gallery', DEFAULT_GALLERY);
     return DEFAULT_GALLERY;
 };
 
