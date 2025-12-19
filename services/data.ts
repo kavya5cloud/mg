@@ -73,8 +73,7 @@ const DEFAULT_PAGE_ASSETS: PageAssets = {
     locationText: "Inside Veer Residency, Gandhinagar Mahudi, Gujarat",
     googleMapsLink: "https://www.google.com/maps/search/?api=1&query=23.506205,72.754318",
     admissionInfo: "General admission to MOCA Gandhinagar is currently free for all visitors. However, pre-registration online is recommended to ensure entry during peak hours.",
-    parkingInfo: "Free visitor parking is available at the Veer Residency complex. Additional street parking is available along Mahudi Road.",
-    accessibilityInfo: "The museum is fully wheelchair accessible. Elevators are located in the main atrium, and complimentary wheelchairs are available at the information desk."
+    parkingInfo: "Free visitor parking is available at the Veer Residency complex. Additional street parking is available along Mahudi Road."
   },
   membership: { hero: "https://picsum.photos/id/1015/600/600" },
   home: { heroBg: "" }
