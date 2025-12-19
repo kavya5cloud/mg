@@ -53,14 +53,26 @@ const HomePage = () => (
 
 const VisitPage = () => {
     const [assets, setAssets] = useState<PageAssets | null>(null);
-    useEffect(() => { setAssets(getPageAssets()); }, []);
+    const [mounted, setMounted] = useState(false);
+
+    useEffect(() => { 
+        setAssets(getPageAssets()); 
+        setMounted(true);
+    }, []);
+
     if (!assets) return null;
+
     return (
-        <div className="pt-10">
+        <div className="pt-10 min-h-screen bg-white">
             <div className="max-w-[1600px] mx-auto px-6 mb-12">
-                <h1 className="text-6xl md:text-9xl font-black tracking-tighter mb-8">Visit Us</h1>
-                <div className="w-full aspect-[21/9] rounded-sm overflow-hidden mb-20 shadow-2xl">
-                    <img src={assets.visit.hero} className="w-full h-full object-cover" alt="Museum Entry" />
+                <h1 className="text-6xl md:text-9xl font-black tracking-tighter mb-12">Visit Us</h1>
+                <div className="w-full aspect-[21/9] rounded-sm overflow-hidden mb-20 shadow-2xl relative bg-gray-100">
+                    <img 
+                        src={assets.visit.hero} 
+                        className={`w-full h-full object-cover transition-all duration-1000 ease-out transform ${mounted ? 'scale-100 opacity-100' : 'scale-110 opacity-0'}`} 
+                        alt="Museum Architecture" 
+                    />
+                    <div className="absolute inset-0 bg-black/5 pointer-events-none" />
                 </div>
             </div>
             <VisitInfo />
