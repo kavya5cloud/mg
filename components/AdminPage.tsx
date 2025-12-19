@@ -266,6 +266,23 @@ const AdminPage: React.FC = () => {
 
   const usagePercent = Math.min(100, (Number(storageMB) / 500) * 100);
 
+  const primaryTabs: Tab[] = ['bookings', 'shop', 'exhibitions', 'whatson', 'collection', 'homepage'];
+  const secondaryTabs: Tab[] = ['content', 'newsletter', 'settings'];
+
+  const renderTabButton = (t: Tab) => {
+    const label = t === 'whatson' ? "What's On" : t;
+    const isActive = activeTab === t;
+    return (
+        <button 
+            key={t} 
+            onClick={() => setActiveTab(t)} 
+            className={`px-4 py-8 text-sm font-black uppercase tracking-widest border-b-4 transition-all duration-300 relative group ${isActive ? 'border-black text-black' : 'border-transparent text-gray-300 hover:text-black'}`}
+        >
+            {label}
+        </button>
+    );
+  };
+
   return (
     <div className="min-h-screen bg-white flex flex-col font-sans">
        <header className="bg-black text-white px-8 py-6 flex justify-between items-center sticky top-0 z-50">
@@ -285,12 +302,14 @@ const AdminPage: React.FC = () => {
        </header>
 
        <main className="flex-grow max-w-[1600px] w-full mx-auto p-10">
-           <div className="flex flex-wrap gap-4 mb-12 border-b-2 border-gray-100">
-               {['bookings', 'shop', 'exhibitions', 'whatson', 'collection', 'homepage', 'content', 'newsletter', 'settings'].map(t => (
-                   <button key={t} onClick={() => setActiveTab(t as Tab)} className={`px-4 py-6 text-xs font-black uppercase tracking-widest border-b-4 transition-all ${activeTab === t ? 'border-black text-black' : 'border-transparent text-gray-300 hover:text-black'}`}>
-                       {t === 'whatson' ? "What's On" : t}
-                   </button>
-               ))}
+           {/* TWO-ROW TAB NAVIGATION AS PER SCREENSHOT */}
+           <div className="border-b border-[#F1F5F9] mb-12">
+               <div className="flex flex-wrap gap-x-12">
+                   {primaryTabs.map(renderTabButton)}
+               </div>
+               <div className="flex flex-wrap gap-x-12">
+                   {secondaryTabs.map(renderTabButton)}
+               </div>
            </div>
 
            {activeTab === 'bookings' && (
@@ -484,6 +503,26 @@ const AdminPage: React.FC = () => {
                             <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-all flex items-center justify-center gap-4"><button onClick={() => openEditor('artwork', art)} className="p-3 bg-white rounded-full"><Pen className="w-4 h-4" /></button><button onClick={() => handleDelete(art.id, 'artwork')} className="p-3 bg-white text-red-600 rounded-full"><Trash className="w-4 h-4" /></button></div>
                         </div>
                     ))}
+                </div>
+           )}
+
+           {activeTab === 'newsletter' && (
+                <div className="bg-white border-2 border-gray-100 rounded-[3rem] overflow-hidden shadow-sm animate-in fade-in">
+                    <div className="p-10 border-b bg-gray-50 flex justify-between items-center"><h2 className="text-2xl font-black uppercase tracking-widest">Newsletter Subscribers</h2><span className="bg-black text-white px-4 py-2 rounded-full text-xs font-bold">{newsletterEmails.length} Emails</span></div>
+                    <div className="p-10">
+                         {newsletterEmails.length > 0 ? (
+                             <ul className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                 {newsletterEmails.map((email, idx) => (
+                                     <li key={idx} className="bg-gray-50 p-4 rounded-xl flex items-center justify-between group">
+                                         <span className="font-bold text-sm">{email}</span>
+                                         <button className="text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"><Trash2 className="w-4 h-4" /></button>
+                                     </li>
+                                 ))}
+                             </ul>
+                         ) : (
+                             <div className="text-center py-20 text-gray-400"><Mail className="w-12 h-12 mx-auto mb-4 opacity-10" /><p>No subscribers recorded yet.</p></div>
+                         )}
+                    </div>
                 </div>
            )}
 
