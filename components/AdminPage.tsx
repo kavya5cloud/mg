@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { Lock, Search, RefreshCw, LogOut, Pen, Trash, Plus, ShoppingBag, Image as ImageIcon, Check, X, Package, Filter, Upload, Mail, Home, RotateCcw, UserPlus, Eye, EyeOff, IndianRupee, Trash2, Database, AlertTriangle, Link as LinkIcon, Info, ExternalLink, Zap, ShieldCheck, Ticket, Users, Tag, Box } from 'lucide-react';
+import { Lock, Search, RefreshCw, LogOut, Pen, Trash, Plus, ShoppingBag, Image as ImageIcon, Check, X, Package, Filter, Upload, Mail, Home, RotateCcw, UserPlus, Eye, EyeOff, IndianRupee, Trash2, Database, AlertTriangle, Link as LinkIcon, Info, ExternalLink, Zap, ShieldCheck, Ticket, Users, Tag, Box, HardDrive } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
 import { 
     getExhibitions, saveExhibitions, 
@@ -254,7 +254,8 @@ const AdminPage: React.FC = () => {
     );
   }
 
-  const usagePercent = Math.min(100, (Number(storageMB) / 5) * 100);
+  // With IndexedDB, the "usage percent" is purely visual based on a high artificial cap (e.g. 500MB)
+  const usagePercent = Math.min(100, (Number(storageMB) / 500) * 100);
 
   return (
     <div className="min-h-screen bg-white flex flex-col font-sans">
@@ -267,7 +268,7 @@ const AdminPage: React.FC = () => {
            </div>
            <div className="flex items-center gap-6">
                 <div className="flex flex-col items-end">
-                    <span className="text-[9px] font-black text-gray-500 uppercase">Memory: {storageMB}MB</span>
+                    <span className="text-[9px] font-black text-gray-500 uppercase">Cache: {storageMB}MB</span>
                     <div className="w-24 h-1 bg-white/10 rounded-full mt-1 overflow-hidden"><div className="h-full bg-green-500" style={{width: `${usagePercent}%`}} /></div>
                 </div>
                 <button onClick={handleLogout} className="p-3 bg-white/10 hover:bg-red-500 rounded-2xl transition-all"><LogOut className="w-5 h-5" /></button>
@@ -424,12 +425,43 @@ const AdminPage: React.FC = () => {
            )}
 
            {activeTab === 'settings' && (
-               <div className="max-w-2xl bg-gray-50 p-12 rounded-[3rem] border-2 border-gray-100 animate-in fade-in">
-                   <h2 className="text-4xl font-black mb-8 tracking-tighter uppercase">System Management</h2>
-                   <p className="text-gray-500 mb-10 leading-relaxed font-medium">Notice: Your museum data is stored in your local browser. If you clear your history or switch devices, your edits will vanish unless you export them.</p>
-                   <div className="space-y-4">
-                       <button onClick={() => { if(confirm('Factory Reset?')) clearAllAppData(); }} className="w-full bg-red-600 text-white py-5 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-red-700 transition-all shadow-xl shadow-red-100">Reset Museum To Factory State</button>
-                       <button onClick={() => loadData()} className="w-full border-2 border-black py-5 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-black hover:text-white transition-all">Re-Sync System Data</button>
+               <div className="max-w-3xl space-y-10 animate-in fade-in">
+                   <div className="bg-gray-50 p-12 rounded-[3rem] border-2 border-gray-100">
+                        <div className="flex items-center gap-6 mb-8">
+                            <div className="p-5 bg-black text-white rounded-[2rem] shadow-xl"><Database className="w-8 h-8" /></div>
+                            <div>
+                                <h2 className="text-3xl font-black tracking-tighter uppercase">Database Architecture</h2>
+                                <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Engine: IndexedDB (High-Capacity)</p>
+                            </div>
+                        </div>
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-10">
+                            <div className="bg-white p-6 rounded-[2rem] border-2 border-gray-50 flex items-center gap-6">
+                                <div className="p-4 bg-gray-100 rounded-2xl"><HardDrive className="w-6 h-6" /></div>
+                                <div>
+                                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Storage Status</p>
+                                    <p className="text-xl font-black">{storageMB} MB Used</p>
+                                </div>
+                            </div>
+                            <div className="bg-white p-6 rounded-[2rem] border-2 border-gray-50 flex items-center gap-6">
+                                <div className="p-4 bg-gray-100 rounded-2xl"><Zap className="w-6 h-6" /></div>
+                                <div>
+                                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Capacity Level</p>
+                                    <p className="text-xl font-black">Unlimited*</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="bg-white p-8 rounded-[2rem] border-2 border-gray-50 mb-10">
+                            <h4 className="font-bold flex items-center gap-2 mb-4"><Info className="w-4 h-4" /> Capacity Advice</h4>
+                            <p className="text-sm text-gray-500 leading-relaxed mb-4">Your museum has been upgraded to <strong>IndexedDB</strong>. This removes the old 5MB restriction. You can now store hundreds of images locally. However, we still recommend keeping individual image sizes under 500KB for the best user performance.</p>
+                            <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden"><div className="h-full bg-green-500 transition-all duration-1000" style={{width: `${usagePercent}%`}} /></div>
+                        </div>
+
+                        <div className="space-y-4">
+                            <button onClick={() => { if(confirm('Factory Reset? All data will be wiped.')) clearAllAppData(); }} className="w-full bg-red-600 text-white py-5 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-red-700 transition-all shadow-xl shadow-red-100">Factory Wipe Database</button>
+                            <button onClick={() => loadData()} className="w-full border-2 border-black py-5 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-black hover:text-white transition-all">Re-Sync System Data</button>
+                        </div>
                    </div>
                </div>
            )}
