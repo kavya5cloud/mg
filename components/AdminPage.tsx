@@ -1,11 +1,22 @@
 
-import React, { useState, useEffect, useRef } from 'react';
-import { Lock, Search, RefreshCw, LogOut, TrendingUp, Users, Calendar, Pen, Trash, Plus, ShoppingBag, Image as ImageIcon, Check, X, Package, Filter, Upload, Mail, BarChart3, PieChart, Home, RotateCcw, Layout, UserPlus, Eye, EyeOff, Tag, IndianRupee, Trash2, Database, AlertTriangle, Link as LinkIcon, Info, ExternalLink, Zap, ShieldCheck } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Lock, Search, RefreshCw, LogOut, Pen, Trash, Plus, ShoppingBag, Image as ImageIcon, Check, X, Package, Filter, Upload, Mail, Home, RotateCcw, UserPlus, Eye, EyeOff, IndianRupee, Trash2, Database, AlertTriangle, Link as LinkIcon, Info, ExternalLink, Zap, ShieldCheck, Ticket } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
-import { getExhibitions, saveExhibitions, getArtworks, saveArtworks, getCollectables, saveCollectables, getShopOrders, updateShopOrders, getNewsletterEmails, getBookings, getHomepageGallery, saveHomepageGallery, resetHomepageGallery, getPageAssets, getStaffMode, setStaffMode, savePageAssets, getStorageUsage, clearAllAppData } from '../services/data';
+import { 
+    getExhibitions, saveExhibitions, 
+    getArtworks, saveArtworks, 
+    getCollectables, saveCollectables, 
+    getShopOrders, updateShopOrders, 
+    getNewsletterEmails, 
+    getBookings, 
+    getHomepageGallery, saveHomepageGallery, resetHomepageGallery,
+    getPageAssets, savePageAssets,
+    getStaffMode, setStaffMode,
+    getStorageUsage, clearAllAppData 
+} from '../services/data';
 import { Exhibition, Artwork, Collectable, ShopOrder, Booking, PageAssets, TeamMember } from '../types';
 
-type Tab = 'bookings' | 'orders' | 'exhibitions' | 'collection' | 'shop' | 'newsletter' | 'homepage' | 'pages' | 'settings';
+type Tab = 'bookings' | 'orders' | 'shop' | 'exhibitions' | 'collection' | 'homepage' | 'content' | 'newsletter' | 'settings';
 
 const AdminPage: React.FC = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -26,14 +37,17 @@ const AdminPage: React.FC = () => {
   const [pageAssets, setPageAssets] = useState<PageAssets | null>(null);
   
   // UI States
+  const [isEditing, setIsEditing] = useState(false);
+  const [editType, setEditType] = useState<'exhibition' | 'artwork' | 'collectable' | 'gallery-image' | 'page-asset' | 'team-member' | null>(null);
+  const [editItem, setEditItem] = useState<any>(null);
+  const [activeTrackIdx, setActiveTrackIdx] = useState<number | null>(null);
+  const [activeAssetKey, setActiveAssetKey] = useState<string | null>(null);
   const [previewError, setPreviewError] = useState(false);
-  const [isPreviewLoading, setIsPreviewLoading] = useState(false);
   const [isCompressing, setIsCompressing] = useState(false);
 
   useEffect(() => {
     if (isAuthenticated) {
         loadData();
-        setStorageMB(getStorageUsage());
         const tabParam = searchParams.get('tab') as Tab;
         if (tabParam) setActiveTab(tabParam);
     }
@@ -51,18 +65,6 @@ const AdminPage: React.FC = () => {
       setStorageMB(getStorageUsage());
   };
 
-  const toggleStaffMode = () => {
-      const newState = !isStaffModeEnabled;
-      setIsStaffModeEnabled(newState);
-      setStaffMode(newState);
-  };
-
-  const [isEditing, setIsEditing] = useState(false);
-  const [editType, setEditType] = useState<'exhibition' | 'artwork' | 'collectable' | 'gallery-image' | 'page-asset' | 'team-member' | null>(null);
-  const [editItem, setEditItem] = useState<any>(null);
-  const [activeTrackIdx, setActiveTrackIdx] = useState<number | null>(null);
-  const [activeAssetKey, setActiveAssetKey] = useState<string | null>(null);
-
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
     if (password === 'admin') setIsAuthenticated(true);
@@ -74,8 +76,14 @@ const AdminPage: React.FC = () => {
     setPassword('');
   };
 
-  const handleDelete = (id: string, type: 'exhibition' | 'artwork' | 'collectable' | 'gallery-image' | 'team-member') => {
-      if (!window.confirm('Are you sure?')) return;
+  const toggleStaffMode = () => {
+      const newState = !isStaffModeEnabled;
+      setIsStaffModeEnabled(newState);
+      setStaffMode(newState);
+  };
+
+  const handleDelete = (id: string, type: string) => {
+      if (!window.confirm('Confirm Deletion?')) return;
       let success = false;
       if (type === 'exhibition') {
           const newData = exhibitions.filter(e => e.id !== id);
@@ -103,7 +111,7 @@ const AdminPage: React.FC = () => {
       setStorageMB(getStorageUsage());
   };
 
-  const openEditor = (type: 'exhibition' | 'artwork' | 'collectable' | 'gallery-image' | 'page-asset' | 'team-member', item?: any, meta?: any) => {
+  const openEditor = (type: any, item?: any, meta?: any) => {
       setEditType(type);
       setEditItem(item ? { ...item } : { inStock: true }); 
       setPreviewError(false);
@@ -118,66 +126,50 @@ const AdminPage: React.FC = () => {
       
       if (editType === 'gallery-image' && activeTrackIdx !== null) {
           const updatedGallery = [...homepageGallery];
-          const newImg = editItem.imageUrl;
-          if (newImg) {
-              if (editItem.oldUrl) {
-                  updatedGallery[activeTrackIdx].images = updatedGallery[activeTrackIdx].images.map((img: string) => img === editItem.oldUrl ? newImg : img);
-              } else {
-                  updatedGallery[activeTrackIdx].images = [...updatedGallery[activeTrackIdx].images, newImg];
-              }
-              success = saveHomepageGallery(updatedGallery);
-              if (success) setHomepageGallery(updatedGallery);
+          if (editItem.oldUrl) {
+              updatedGallery[activeTrackIdx].images = updatedGallery[activeTrackIdx].images.map((img: string) => img === editItem.oldUrl ? editItem.imageUrl : img);
+          } else {
+              updatedGallery[activeTrackIdx].images = [...updatedGallery[activeTrackIdx].images, editItem.imageUrl];
           }
+          success = saveHomepageGallery(updatedGallery);
       } else if (editType === 'team-member' && pageAssets) {
           const updatedAssets = { ...pageAssets };
           const id = editItem.id || Date.now().toString();
-          const newMember = { ...editItem, id };
           if (editItem.id) {
-              updatedAssets.about.team = updatedAssets.about.team.map(m => m.id === id ? newMember : m);
+              updatedAssets.about.team = updatedAssets.about.team.map(m => m.id === id ? editItem : m);
           } else {
-              updatedAssets.about.team = [...updatedAssets.about.team, newMember];
+              updatedAssets.about.team = [...updatedAssets.about.team, { ...editItem, id }];
           }
           success = savePageAssets(updatedAssets);
-          if (success) setPageAssets(updatedAssets);
       } else if (editType === 'page-asset' && activeAssetKey && pageAssets) {
           const [page, key] = activeAssetKey.split('.');
           const updatedAssets = { ...pageAssets };
           (updatedAssets as any)[page][key] = editItem.imageUrl || editItem.text;
           success = savePageAssets(updatedAssets);
-          if (success) setPageAssets(updatedAssets);
       } else {
           const id = editItem.id || Date.now().toString();
           const newItem = { ...editItem, id };
           if (editType === 'exhibition') {
               const updated = editItem.id ? exhibitions.map(ex => ex.id === id ? newItem : ex) : [...exhibitions, newItem];
               success = saveExhibitions(updated);
-              if (success) setExhibitions(updated);
           } else if (editType === 'artwork') {
               const updated = editItem.id ? artworks.map(art => art.id === id ? newItem : art) : [...artworks, newItem];
               success = saveArtworks(updated);
-              if (success) setArtworks(updated);
           } else if (editType === 'collectable') {
               const updated = editItem.id ? collectables.map(c => c.id === id ? newItem : c) : [...collectables, newItem];
               success = saveCollectables(updated);
-              if (success) setCollectables(updated);
           }
       }
 
       if (success) {
-        setIsEditing(false); setEditItem(null); setActiveTrackIdx(null); setActiveAssetKey(null);
-        setSearchParams({});
+        setIsEditing(false);
         loadData();
       }
   };
 
-  /**
-   * CRITICAL: Intelligent Browser-side Compression
-   * This makes "Direct Upload" work without filling up the browser quota or failing.
-   */
   const handleImageUpload = (file: File) => {
       if (!file) return;
       setIsCompressing(true);
-      
       const reader = new FileReader();
       reader.onload = (e) => {
           const img = new Image();
@@ -185,22 +177,17 @@ const AdminPage: React.FC = () => {
               const canvas = document.createElement('canvas');
               let width = img.width;
               let height = img.height;
-              
-              // Max width for museum displays (1200px is perfect for web)
               const MAX_WIDTH = 1200;
               if (width > MAX_WIDTH) {
                   height *= MAX_WIDTH / width;
                   width = MAX_WIDTH;
               }
-              
               canvas.width = width;
               canvas.height = height;
               const ctx = canvas.getContext('2d');
               ctx?.drawImage(img, 0, 0, width, height);
-              
-              // Compress to JPEG at 0.7 quality
-              const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.7);
-              setEditItem((prev: any) => ({ ...prev, imageUrl: compressedDataUrl }));
+              const compressed = canvas.toDataURL('image/jpeg', 0.75);
+              setEditItem((prev: any) => ({ ...prev, imageUrl: compressed }));
               setPreviewError(false);
               setIsCompressing(false);
           };
@@ -209,137 +196,52 @@ const AdminPage: React.FC = () => {
       reader.readAsDataURL(file);
   };
 
-  const transformImageUrl = (url: string) => {
-    if (!url) return '';
-    const cleanUrl = url.trim();
-    
-    // Drive: Extract ID and use standard /uc? export link
-    const driveMatch = cleanUrl.match(/(?:drive\.google\.com\/(?:file\/d\/|open\?id=|uc\?id=|uc\?export=view&id=)|https?:\/\/[\w\d.-]+\.google\.com\/.*?id=)([a-zA-Z0-9_-]{28,})/);
-    if (driveMatch && driveMatch[1]) {
-        return `https://drive.google.com/uc?id=${driveMatch[1]}`;
-    }
-    
-    // Dropbox
-    if (cleanUrl.includes('dropbox.com')) {
-        return cleanUrl.replace('www.dropbox.com', 'dl.dropboxusercontent.com').replace('?dl=0', '').replace('?dl=1', '');
-    }
-
-    return cleanUrl;
+  const transformDriveUrl = (url: string) => {
+      if (!url) return '';
+      const driveMatch = url.match(/(?:id=|\/d\/)([a-zA-Z0-9_-]{28,})/);
+      if (driveMatch) return `https://drive.google.com/uc?id=${driveMatch[1]}`;
+      return url;
   };
 
   const renderImageInput = () => {
-    const isDataUrl = editItem.imageUrl?.startsWith('data:');
-    const isDriveUrl = editItem.imageUrl?.includes('drive.google.com');
-
-    return (
-      <div className="space-y-4">
-          <label className="text-xs font-black uppercase text-gray-400 tracking-widest">Visual Asset</label>
-          
-          <div 
-              className={`border-2 border-dashed rounded-[2rem] p-4 flex flex-col items-center justify-center text-center cursor-pointer transition-all group relative overflow-hidden bg-gray-50/50 min-h-[300px] ${previewError ? 'border-red-300 bg-red-50' : 'border-gray-300 hover:border-black'}`}
-              onClick={() => !editItem.imageUrl && document.getElementById('hidden-file-input')?.click()}
-          >
-              <input type="file" id="hidden-file-input" className="hidden" accept="image/*" onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  if (file) handleImageUpload(file);
-              }} />
-              
-              {isCompressing && (
-                  <div className="absolute inset-0 z-20 bg-white/80 backdrop-blur-sm flex flex-col items-center justify-center">
-                      <RefreshCw className="w-8 h-8 animate-spin text-black mb-2" />
-                      <p className="text-[10px] font-black uppercase tracking-widest">Optimizing for Museum Database...</p>
-                  </div>
-              )}
-
-              {editItem.imageUrl ? (
-                  <div className="relative w-full h-full overflow-hidden rounded-2xl bg-gray-100">
-                      {previewError ? (
-                          <div className="w-full h-[250px] flex flex-col items-center justify-center p-6 bg-red-50">
-                              <AlertTriangle className="w-8 h-8 text-red-500 mb-2" />
-                              <p className="text-xs font-bold text-red-700">Display Blocked</p>
-                              <p className="text-[10px] text-red-500 mt-2 text-center">Google restricted this link. Ensure "Anyone with the link" is enabled in Drive sharing.</p>
-                              <button 
-                                  type="button" 
-                                  onClick={(e) => { e.stopPropagation(); setEditItem((prev:any)=>({...prev, imageUrl: ''})); }}
-                                  className="mt-4 bg-red-600 text-white px-4 py-2 rounded-lg text-[10px] font-black uppercase"
-                              >
-                                  Try Direct Upload
-                              </button>
-                          </div>
-                      ) : (
-                        <>
-                          <img 
-                            src={editItem.imageUrl} 
-                            alt="Preview" 
-                            className="w-full h-full object-cover rounded-2xl" 
-                            onError={() => setPreviewError(true)}
-                            onLoad={() => setPreviewError(false)}
-                          />
-                          <div 
-                            className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex flex-col items-center justify-center text-white transition-opacity duration-200"
-                            onClick={(e) => { e.stopPropagation(); document.getElementById('hidden-file-input')?.click(); }}
-                          >
-                              <Upload className="w-8 h-8 mb-2" />
-                              <span className="font-bold text-sm">Replace with High-Res Photo</span>
-                          </div>
-                        </>
-                      )}
-                  </div>
-              ) : (
-                  <div className="py-12">
-                      <div className="bg-white w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4 shadow-xl group-hover:scale-110 transition-transform">
-                          <Upload className="w-8 h-8 text-black" />
-                      </div>
-                      <p className="text-lg font-black text-gray-900">Direct Upload</p>
-                      <p className="text-[10px] text-gray-400 mt-1 uppercase tracking-widest leading-none">Best for stability</p>
-                  </div>
-              )}
+      const isDataUrl = editItem.imageUrl?.startsWith('data:');
+      return (
+          <div className="space-y-4">
+              <div 
+                  className={`border-4 border-dashed rounded-[2rem] p-6 flex flex-col items-center justify-center min-h-[250px] transition-all bg-gray-50/50 relative overflow-hidden ${previewError ? 'border-red-300' : 'hover:border-black border-gray-200'}`}
+                  onClick={() => document.getElementById('file-up')?.click()}
+              >
+                  <input type="file" id="file-up" className="hidden" accept="image/*" onChange={e => handleImageUpload(e.target.files![0])} />
+                  {isCompressing && <div className="absolute inset-0 bg-white/80 z-20 flex flex-col items-center justify-center"><RefreshCw className="animate-spin mb-2" /> <span className="text-[10px] font-black uppercase">Optimizing...</span></div>}
+                  {editItem.imageUrl ? (
+                      <img src={editItem.imageUrl} className="w-full h-full object-cover absolute inset-0" onError={() => setPreviewError(true)} onLoad={() => setPreviewError(false)} />
+                  ) : (
+                      <div className="flex flex-col items-center"><Upload className="w-10 h-10 mb-4" /><span className="font-black text-xs uppercase tracking-widest">Click to Direct Upload</span></div>
+                  )}
+              </div>
+              <div className="relative">
+                  <LinkIcon className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
+                  <input 
+                    className="w-full border-2 border-gray-100 p-4 pl-12 rounded-2xl text-sm outline-none focus:border-black"
+                    placeholder="Or paste Google Drive link..."
+                    value={isDataUrl ? 'Direct Upload Active' : (editItem.imageUrl || '')}
+                    onChange={e => setEditItem((prev:any)=>({...prev, imageUrl: transformDriveUrl(e.target.value)}))}
+                    readOnly={isDataUrl}
+                  />
+                  {isDataUrl && <button onClick={() => setEditItem((prev:any)=>({...prev, imageUrl: ''}))} className="absolute right-4 top-1/2 -translate-y-1/2 text-red-500 font-bold text-xs uppercase">Clear</button>}
+              </div>
           </div>
-
-          <div className="relative">
-            <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-300">
-                <LinkIcon className="w-4 h-4" />
-            </div>
-            <input 
-              type="text" 
-              placeholder="Or paste Google Drive 'Share' link..." 
-              className={`w-full border-2 border-gray-100 pl-11 pr-16 py-4 rounded-2xl bg-white text-sm focus:border-black outline-none transition-all`}
-              value={isDataUrl ? 'Direct Upload Active (Optimized)' : (editItem.imageUrl || '')} 
-              onChange={e => {
-                  const transformed = transformImageUrl(e.target.value);
-                  setEditItem((prev: any) => ({...prev, imageUrl: transformed}));
-                  setPreviewError(false);
-              }} 
-              readOnly={!!isDataUrl} 
-            />
-            {isDataUrl ? (
-                <div className="absolute right-3 top-1/2 -translate-y-1/2 bg-green-500 text-white px-3 py-1 rounded-full text-[8px] font-black uppercase flex items-center gap-1">
-                    <Check className="w-2 h-2" /> STORED LOCAL
-                </div>
-            ) : editItem.imageUrl && (
-                <div className="absolute right-3 top-1/2 -translate-y-1/2 bg-blue-600 text-white px-3 py-1 rounded-full text-[8px] font-black uppercase">
-                    EXTERNAL LINK
-                </div>
-            )}
-          </div>
-          
-          {isDataUrl && (
-              <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest px-2 flex items-center gap-2">
-                 <ShieldCheck className="w-3 h-3 text-green-500" /> Image processed and stored in museum archive safely.
-              </p>
-          )}
-      </div>
-    );
+      );
   };
 
   if (!isAuthenticated) {
     return (
-      <div className="min-h-screen bg-gray-100 flex items-center justify-center p-6">
-         <div className="bg-white max-w-sm w-full p-10 rounded-[3rem] shadow-2xl">
-             <div className="text-center mb-10"><h1 className="text-4xl font-black mb-2 tracking-tighter">MOCA</h1><p className="text-xs font-black uppercase tracking-[0.2em] text-gray-400">Gandhinagar Admin</p></div>
+      <div className="min-h-screen bg-black flex items-center justify-center p-6">
+         <div className="bg-white max-w-sm w-full p-10 rounded-[3rem] shadow-2xl text-center">
+             <h1 className="text-4xl font-black mb-8 tracking-tighter italic">MOCA STAFF</h1>
              <form onSubmit={handleLogin} className="space-y-4">
-                 <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} className="w-full border-2 border-gray-100 rounded-2xl px-6 py-4 outline-none focus:border-black text-center font-bold" placeholder="Security Key" />
-                 <button type="submit" className="w-full bg-black text-white font-black py-4 rounded-2xl hover:bg-gray-800 transition-colors uppercase tracking-widest">Login</button>
+                 <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} className="w-full border-2 border-gray-100 rounded-2xl px-6 py-4 outline-none focus:border-black text-center font-bold" placeholder="Access Code" />
+                 <button type="submit" className="w-full bg-black text-white font-black py-4 rounded-2xl hover:bg-gray-800 transition-colors uppercase tracking-widest">Enter Dashboard</button>
              </form>
          </div>
       </div>
@@ -349,206 +251,148 @@ const AdminPage: React.FC = () => {
   const usagePercent = Math.min(100, (Number(storageMB) / 5) * 100);
 
   return (
-    <div className="min-h-screen bg-white flex flex-col">
+    <div className="min-h-screen bg-white flex flex-col font-sans">
        <header className="bg-black text-white px-8 py-6 flex justify-between items-center sticky top-0 z-50">
            <div className="flex items-center gap-8">
-               <div className="font-black tracking-tighter text-3xl">MOCA <span className="font-normal text-gray-500 ml-1">SYSTEMS</span></div>
-               <button 
-                onClick={toggleStaffMode}
-                className={`flex items-center gap-2 px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-widest transition-all ${isStaffModeEnabled ? 'bg-green-500 text-white shadow-[0_0_20px_rgba(34,197,94,0.4)]' : 'bg-white/10 text-gray-400 hover:bg-white/20'}`}
-               >
-                 {isStaffModeEnabled ? <Eye className="w-3 h-3" /> : <EyeOff className="w-3 h-3" />}
+               <div className="font-black tracking-tighter text-3xl">MOCA <span className="text-gray-500">SYSTEMS</span></div>
+               <button onClick={toggleStaffMode} className={`px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-widest transition-all ${isStaffModeEnabled ? 'bg-green-500 shadow-[0_0_20px_rgba(34,197,94,0.4)]' : 'bg-white/10 text-gray-500'}`}>
                  Editing {isStaffModeEnabled ? 'ACTIVE' : 'LOCKED'}
                </button>
            </div>
-           
            <div className="flex items-center gap-6">
-               <div className="hidden md:flex flex-col items-end mr-4">
-                    <div className="flex items-center gap-2 mb-1">
-                        <Database className="w-3 h-3 text-gray-400" />
-                        <span className="text-[10px] font-black uppercase text-gray-400 tracking-widest">Memory: {storageMB}MB</span>
-                    </div>
-                    <div className="w-40 h-1 bg-white/10 rounded-full overflow-hidden">
-                        <div className={`h-full transition-all ${usagePercent > 80 ? 'bg-red-500' : 'bg-green-500'}`} style={{ width: `${usagePercent}%` }} />
-                    </div>
-               </div>
-               <button onClick={handleLogout} className="p-3 bg-white/10 hover:bg-red-500 hover:text-white rounded-2xl transition-all"><LogOut className="w-5 h-5" /></button>
+                <div className="flex flex-col items-end">
+                    <span className="text-[9px] font-black text-gray-500 uppercase">Memory: {storageMB}MB</span>
+                    <div className="w-24 h-1 bg-white/10 rounded-full mt-1 overflow-hidden"><div className="h-full bg-green-500" style={{width: `${usagePercent}%`}} /></div>
+                </div>
+                <button onClick={handleLogout} className="p-3 bg-white/10 hover:bg-red-500 rounded-2xl transition-all"><LogOut className="w-5 h-5" /></button>
            </div>
        </header>
 
        <main className="flex-grow max-w-[1600px] w-full mx-auto p-10">
-           <div className="flex flex-wrap gap-4 mb-12 border-b-2 border-gray-100 pb-1">
-               {['bookings', 'orders', 'shop', 'exhibitions', 'collection', 'homepage', 'pages', 'newsletter', 'settings'].map(t => (
-                   <button key={t} onClick={() => setActiveTab(t as Tab)} className={`px-4 py-4 text-xs font-black uppercase tracking-[0.2em] border-b-4 transition-all ${activeTab === t ? 'border-black text-black' : 'border-transparent text-gray-300 hover:text-black'}`}>
-                       {t === 'pages' ? 'Content' : t}
+           <div className="flex flex-wrap gap-4 mb-12 border-b-2 border-gray-100">
+               {['bookings', 'shop', 'exhibitions', 'collection', 'homepage', 'content', 'newsletter', 'settings'].map(t => (
+                   <button key={t} onClick={() => setActiveTab(t as Tab)} className={`px-4 py-6 text-xs font-black uppercase tracking-widest border-b-4 transition-all ${activeTab === t ? 'border-black text-black' : 'border-transparent text-gray-300 hover:text-black'}`}>
+                       {t}
                    </button>
                ))}
            </div>
 
-           {activeTab === 'settings' && (
-               <div className="max-w-3xl animate-in fade-in slide-in-from-bottom-4">
-                   <h2 className="text-5xl font-black mb-8 tracking-tighter">System Health</h2>
-                   <div className="space-y-6">
-                        <div className="bg-gray-50 p-10 rounded-[3rem] border-2 border-gray-100">
-                            <h3 className="text-xl font-black mb-6 flex items-center gap-3">
-                                <ShieldCheck className="w-6 h-6 text-green-500" /> Database Integrity
-                            </h3>
-                            <div className="text-sm text-gray-600 mb-8 leading-relaxed">
-                                <p className="font-bold text-black mb-2">Notice on Storage:</p>
-                                <p>This museum is currently using browser-local storage (5MB limit). The new **Direct Upload** engine automatically compresses your photos so they occupy 95% less space while staying sharp.</p>
-                            </div>
-                            <div className="flex flex-col sm:flex-row gap-4">
-                                <button 
-                                    onClick={() => { if(window.confirm('Delete everything?')) clearAllAppData(); }}
-                                    className="flex-1 bg-red-600 text-white py-4 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-red-700 transition-all shadow-xl shadow-red-100"
-                                >
-                                    Factory Reset
-                                </button>
-                                <button 
-                                    onClick={() => loadData()}
-                                    className="flex-1 border-2 border-black text-black py-4 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-gray-50 transition-all"
-                                >
-                                    Re-Sync Stats
-                                </button>
-                            </div>
-                        </div>
+           {activeTab === 'bookings' && (
+               <div className="bg-white border-2 border-gray-100 rounded-[3rem] overflow-hidden shadow-sm animate-in fade-in slide-in-from-bottom-4">
+                   <div className="p-10 border-b bg-gray-50 flex justify-between items-center"><h2 className="text-2xl font-black uppercase tracking-widest">Entry Registry</h2><span className="bg-black text-white px-4 py-2 rounded-full text-xs font-bold">{bookings.length} Registered</span></div>
+                   <div className="overflow-x-auto">
+                        <table className="w-full text-left">
+                            <thead className="bg-white text-[10px] font-black uppercase tracking-widest text-gray-400 border-b"><th className="p-8">Visitor</th><th className="p-8">Date</th><th className="p-8">Status</th></thead>
+                            <tbody className="divide-y divide-gray-50">
+                                {bookings.map(b => (
+                                    <tr key={b.id} className="hover:bg-gray-50/50">
+                                        <td className="p-8"><div className="font-bold">{b.customerName}</div><div className="text-xs text-gray-400">{b.email}</div></td>
+                                        <td className="p-8 font-bold">{new Date(b.date).toLocaleDateString()}</td>
+                                        <td className="p-8"><span className="bg-green-100 text-green-700 px-3 py-1 rounded-full text-[10px] font-black uppercase">Confirmed</span></td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
                    </div>
                </div>
            )}
 
-           {/* EXHIBITIONS TAB */}
-           {activeTab === 'exhibitions' && (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                    <button onClick={() => openEditor('exhibition')} className="bg-gray-50 border-4 border-dashed border-gray-200 rounded-[3rem] h-[350px] flex flex-col items-center justify-center text-gray-400 hover:border-black hover:text-black transition-all group">
-                        <Plus className="w-12 h-12 mb-4 group-hover:scale-125 transition-transform" /> 
-                        <span className="font-black text-xs uppercase tracking-widest">New Exhibition</span>
-                    </button>
-                    {exhibitions.map(ex => (
-                       <div key={ex.id} className="bg-white border-2 border-gray-100 rounded-[3rem] overflow-hidden flex flex-col group hover:shadow-2xl transition-all">
-                           <div className="h-64 w-full bg-gray-100 relative">
-                               <img src={ex.imageUrl} className="w-full h-full object-cover" />
-                               <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-4">
-                                   <button onClick={() => openEditor('exhibition', ex)} className="p-4 bg-white rounded-full hover:scale-110 transition-transform"><Pen className="w-5 h-5" /></button>
-                                   <button onClick={() => handleDelete(ex.id, 'exhibition')} className="p-4 bg-white text-red-600 rounded-full hover:scale-110 transition-transform"><Trash className="w-5 h-5" /></button>
-                               </div>
+           {activeTab === 'homepage' && (
+               <div className="space-y-12 animate-in fade-in slide-in-from-bottom-4">
+                   {homepageGallery.map((track, idx) => (
+                       <div key={idx} className="bg-gray-50 p-10 rounded-[3rem] border-2 border-gray-100">
+                           <div className="flex justify-between items-center mb-8"><h3 className="text-xl font-black uppercase tracking-widest">Scrolling Track {idx+1}</h3><button onClick={() => openEditor('gallery-image', null, idx)} className="bg-black text-white px-4 py-2 rounded-xl text-xs font-black uppercase">Add Photo</button></div>
+                           <div className="flex gap-6 overflow-x-auto pb-6">
+                               {track.images.map((img: string) => (
+                                   <div key={img} className="w-48 h-48 bg-white border-2 border-gray-100 rounded-[2rem] overflow-hidden relative group shrink-0">
+                                       <img src={img} className="w-full h-full object-cover" />
+                                       <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                                           <button onClick={() => openEditor('gallery-image', { imageUrl: img, oldUrl: img }, idx)} className="p-2 bg-white rounded-full"><Pen className="w-4 h-4" /></button>
+                                           <button onClick={() => handleDelete(img, 'gallery-image')} className="p-2 bg-red-500 text-white rounded-full"><Trash className="w-4 h-4" /></button>
+                                       </div>
+                                   </div>
+                               ))}
                            </div>
-                           <div className="p-8"><h3 className="font-black text-xl mb-1">{ex.title}</h3><p className="text-[10px] text-gray-400 uppercase font-black tracking-widest">{ex.category}</p></div>
                        </div>
-                    ))}
-                </div>
+                   ))}
+               </div>
            )}
 
-           {/* COLLECTION TAB */}
-           {activeTab === 'collection' && (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-                    <button onClick={() => openEditor('artwork')} className="bg-gray-50 border-4 border-dashed border-gray-200 rounded-[3rem] aspect-square flex flex-col items-center justify-center text-gray-400 hover:border-black hover:text-black transition-all">
-                        <Plus className="w-10 h-10 mb-2" /> <span className="font-black text-[10px] uppercase">Add Work</span>
+           {activeTab === 'content' && pageAssets && (
+               <div className="max-w-4xl space-y-12 animate-in fade-in slide-in-from-bottom-4">
+                   <div className="bg-gray-50 p-10 rounded-[3rem] border-2 border-gray-100">
+                       <h3 className="text-2xl font-black mb-10 border-b pb-6 uppercase tracking-widest">General Content</h3>
+                       <div className="grid md:grid-cols-2 gap-10">
+                           <div className="space-y-6">
+                               <div><label className="text-[10px] font-black text-gray-400 uppercase mb-2 block">Hero Intro Title</label><input className="w-full border-2 p-4 rounded-2xl font-bold" value={pageAssets.about.introTitle} onChange={e => { const u = {...pageAssets}; u.about.introTitle = e.target.value; setPageAssets(u); savePageAssets(u); }} /></div>
+                               <div><label className="text-[10px] font-black text-gray-400 uppercase mb-2 block">Description Para</label><textarea rows={6} className="w-full border-2 p-4 rounded-2xl text-sm" value={pageAssets.about.introPara1} onChange={e => { const u = {...pageAssets}; u.about.introPara1 = e.target.value; setPageAssets(u); savePageAssets(u); }} /></div>
+                           </div>
+                           <div className="space-y-8">
+                                <div className="p-6 bg-white rounded-[2rem] border-2 border-gray-100"><h4 className="text-[10px] font-black uppercase mb-4">About Hero Image</h4><img src={pageAssets.about.hero} className="w-full h-32 object-cover rounded-xl mb-4" /><button onClick={() => openEditor('page-asset', {imageUrl: pageAssets.about.hero}, 'about.hero')} className="w-full bg-black text-white py-2 rounded-xl text-[10px] font-black uppercase">Edit Photo</button></div>
+                                <div className="p-6 bg-white rounded-[2rem] border-2 border-gray-100"><h4 className="text-[10px] font-black uppercase mb-4">Atrium Gallery Image</h4><img src={pageAssets.about.atrium} className="w-full h-32 object-cover rounded-xl mb-4" /><button onClick={() => openEditor('page-asset', {imageUrl: pageAssets.about.atrium}, 'about.atrium')} className="w-full bg-black text-white py-2 rounded-xl text-[10px] font-black uppercase">Edit Photo</button></div>
+                           </div>
+                       </div>
+                   </div>
+               </div>
+           )}
+
+           {activeTab === 'exhibitions' && (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10 animate-in fade-in">
+                    <button onClick={() => openEditor('exhibition')} className="bg-gray-50 border-4 border-dashed border-gray-100 rounded-[3rem] h-[400px] flex flex-col items-center justify-center text-gray-300 hover:border-black hover:text-black transition-all group">
+                        <Plus className="w-16 h-16 mb-4 group-hover:scale-110 transition-transform" /> <span className="font-black text-xs uppercase tracking-widest">New Exhibition</span>
                     </button>
-                    {artworks.map(art => (
-                        <div key={art.id} className="bg-white border-2 border-gray-100 rounded-[3rem] overflow-hidden flex flex-col group hover:shadow-xl transition-all">
-                            <div className="aspect-square w-full bg-gray-50 relative overflow-hidden">
-                                <img src={art.imageUrl} className="w-full h-full object-cover" />
-                                <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-4">
-                                    <button onClick={() => openEditor('artwork', art)} className="p-3 bg-white rounded-full hover:scale-110 transition-transform"><Pen className="w-4 h-4" /></button>
-                                    <button onClick={() => handleDelete(art.id, 'artwork')} className="p-3 bg-white text-red-600 rounded-full hover:scale-110 transition-transform"><Trash className="w-4 h-4" /></button>
-                                </div>
-                            </div>
-                            <div className="p-6">
-                                <h3 className="font-black text-sm truncate italic">{art.title}</h3>
-                                <p className="text-[10px] text-gray-400 font-black uppercase tracking-widest mt-1">{art.artist}</p>
-                            </div>
+                    {exhibitions.map(ex => (
+                        <div key={ex.id} className="bg-white border-2 border-gray-50 rounded-[3rem] overflow-hidden flex flex-col group hover:shadow-2xl transition-all">
+                            <div className="h-64 relative overflow-hidden"><img src={ex.imageUrl} className="w-full h-full object-cover" /><div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-all flex items-center justify-center gap-4"><button onClick={() => openEditor('exhibition', ex)} className="p-4 bg-white rounded-full hover:scale-110 transition-transform"><Pen className="w-6 h-6" /></button><button onClick={() => handleDelete(ex.id, 'exhibition')} className="p-4 bg-white text-red-600 rounded-full hover:scale-110 transition-transform"><Trash className="w-6 h-6" /></button></div></div>
+                            <div className="p-10"><h3 className="font-black text-2xl tracking-tighter mb-1">{ex.title}</h3><p className="text-[10px] text-gray-400 font-black uppercase tracking-widest">{ex.category}</p></div>
                         </div>
                     ))}
                 </div>
            )}
 
-           {/* RECENT BOOKINGS TAB */}
-           {activeTab === 'bookings' && (
-               <div className="bg-white border-2 border-gray-100 rounded-[3rem] overflow-hidden shadow-sm">
-                   <div className="p-8 border-b border-gray-100 bg-gray-50 flex justify-between items-center">
-                       <h3 className="text-xl font-black uppercase tracking-widest">Entry Registry</h3>
-                       <div className="bg-black text-white px-4 py-1.5 rounded-full text-[10px] font-black">{bookings.length} Registered</div>
-                   </div>
-                   <div className="overflow-x-auto">
-                       <table className="w-full text-left">
-                           <thead>
-                               <tr className="border-b border-gray-100 text-[10px] font-black uppercase tracking-widest text-gray-400">
-                                   <th className="px-8 py-6">ID</th>
-                                   <th className="px-8 py-6">Visitor</th>
-                                   <th className="px-8 py-6">Date</th>
-                                   <th className="px-8 py-6">Status</th>
-                               </tr>
-                           </thead>
-                           <tbody className="text-sm">
-                               {bookings.map(booking => (
-                                   <tr key={booking.id} className="border-b border-gray-50 hover:bg-gray-50 transition-colors">
-                                       <td className="px-8 py-5 font-mono text-xs text-gray-400">{booking.id}</td>
-                                       <td className="px-8 py-5">
-                                           <div className="font-bold">{booking.customerName}</div>
-                                           <div className="text-[10px] text-gray-400">{booking.email}</div>
-                                       </td>
-                                       <td className="px-8 py-5 font-bold">{new Date(booking.date).toLocaleDateString()}</td>
-                                       <td className="px-8 py-5">
-                                           <span className="bg-green-100 text-green-700 px-3 py-1 rounded-full text-[10px] font-black uppercase">Confirmed</span>
-                                       </td>
-                                   </tr>
-                               ))}
-                           </tbody>
-                       </table>
+           {activeTab === 'collection' && (
+                <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-8 animate-in fade-in">
+                    <button onClick={() => openEditor('artwork')} className="bg-gray-50 border-4 border-dashed border-gray-100 rounded-[2.5rem] aspect-square flex flex-col items-center justify-center text-gray-300 hover:border-black transition-all"><Plus /></button>
+                    {artworks.map(art => (
+                        <div key={art.id} className="bg-white border-2 border-gray-50 rounded-[2.5rem] overflow-hidden relative group aspect-square shadow-sm">
+                            <img src={art.imageUrl} className="w-full h-full object-cover" />
+                            <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-all flex items-center justify-center gap-4"><button onClick={() => openEditor('artwork', art)} className="p-3 bg-white rounded-full"><Pen className="w-4 h-4" /></button><button onClick={() => handleDelete(art.id, 'artwork')} className="p-3 bg-white text-red-600 rounded-full"><Trash className="w-4 h-4" /></button></div>
+                        </div>
+                    ))}
+                </div>
+           )}
+
+           {activeTab === 'settings' && (
+               <div className="max-w-2xl bg-gray-50 p-12 rounded-[3rem] border-2 border-gray-100 animate-in fade-in">
+                   <h2 className="text-4xl font-black mb-8 tracking-tighter uppercase">System Management</h2>
+                   <p className="text-gray-500 mb-10 leading-relaxed font-medium">Notice: Your museum data is stored in your local browser. If you clear your history or switch devices, your edits will vanish unless you export them.</p>
+                   <div className="space-y-4">
+                       <button onClick={() => { if(confirm('Factory Reset?')) clearAllAppData(); }} className="w-full bg-red-600 text-white py-5 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-red-700 transition-all shadow-xl shadow-red-100">Reset Museum To Factory State</button>
+                       <button onClick={() => loadData()} className="w-full border-2 border-black py-5 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-black hover:text-white transition-all">Re-Sync System Data</button>
                    </div>
                </div>
            )}
        </main>
 
        {isEditing && (
-          <div className="fixed inset-0 bg-black/60 z-[100] flex items-center justify-center p-6 backdrop-blur-md">
-              <div className="bg-white rounded-[3rem] p-10 max-w-xl w-full shadow-2xl overflow-y-auto max-h-[90vh] animate-in zoom-in duration-300">
-                  <div className="flex justify-between items-center mb-10 border-b pb-6">
-                      <h3 className="text-3xl font-black tracking-tighter capitalize">{editType?.replace('-', ' ')} Editor</h3>
-                      <button onClick={() => setIsEditing(false)} className="p-2 hover:bg-gray-100 rounded-full"><X className="w-6 h-6" /></button>
-                  </div>
-                  
-                  <form onSubmit={handleSaveItem} className="space-y-8">
-                      {editType === 'exhibition' && (
-                          <div className="space-y-6">
-                              <input required className="w-full border-2 border-gray-100 p-5 rounded-2xl font-bold focus:border-black outline-none" placeholder="Title" value={editItem.title || ''} onChange={e => setEditItem((prev: any) => ({...prev, title: e.target.value}))} />
-                              <input required className="w-full border-2 border-gray-100 p-5 rounded-2xl font-bold focus:border-black outline-none" placeholder="Category" value={editItem.category || ''} onChange={e => setEditItem((prev: any) => ({...prev, category: e.target.value}))} />
-                              <textarea required className="w-full border-2 border-gray-100 p-5 rounded-2xl text-sm focus:border-black outline-none" placeholder="Description" rows={3} value={editItem.description || ''} onChange={e => setEditItem((prev: any) => ({...prev, description: e.target.value}))} />
-                              {renderImageInput()}
-                          </div>
-                      )}
-                      {editType === 'artwork' && (
-                          <div className="space-y-6">
-                              <input required className="w-full border-2 border-gray-100 p-5 rounded-2xl font-bold focus:border-black outline-none" placeholder="Title" value={editItem.title || ''} onChange={e => setEditItem((prev: any) => ({...prev, title: e.target.value}))} />
-                              <div className="grid grid-cols-2 gap-4">
-                                  <input required className="w-full border-2 border-gray-100 p-5 rounded-2xl font-bold focus:border-black outline-none" placeholder="Artist" value={editItem.artist || ''} onChange={e => setEditItem((prev: any) => ({...prev, artist: e.target.value}))} />
-                                  <input required className="w-full border-2 border-gray-100 p-5 rounded-2xl font-bold focus:border-black outline-none" placeholder="Year" value={editItem.year || ''} onChange={e => setEditItem((prev: any) => ({...prev, year: e.target.value}))} />
-                              </div>
-                              {renderImageInput()}
-                          </div>
-                      )}
-                      {editType === 'collectable' && (
-                          <div className="space-y-6">
-                              <input required className="w-full border-2 border-gray-100 p-5 rounded-2xl font-bold focus:border-black outline-none" placeholder="Product Name" value={editItem.name || ''} onChange={e => setEditItem((prev: any) => ({...prev, name: e.target.value}))} />
-                              <div className="grid grid-cols-2 gap-4">
-                                  <div className="relative">
-                                      <IndianRupee className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                                      <input required type="number" className="w-full border-2 border-gray-100 p-5 pl-10 rounded-2xl font-bold focus:border-black outline-none" placeholder="Price" value={editItem.price || ''} onChange={e => setEditItem((prev: any) => ({...prev, price: Number(e.target.value)}))} />
-                                  </div>
-                                  <input required className="w-full border-2 border-gray-100 p-5 rounded-2xl font-bold focus:border-black outline-none" placeholder="Category" value={editItem.category || ''} onChange={e => setEditItem((prev: any) => ({...prev, category: e.target.value}))} />
-                              </div>
-                              {renderImageInput()}
-                          </div>
-                      )}
-                      {(editType === 'page-asset' || editType === 'gallery-image') && renderImageInput()}
-                      
-                      <div className="flex gap-4 pt-6">
-                          <button type="submit" disabled={isCompressing} className="flex-1 bg-black text-white py-5 rounded-2xl font-black uppercase tracking-widest hover:bg-gray-800 transition-all disabled:opacity-50">Save To System</button>
-                          <button type="button" onClick={() => setIsEditing(false)} className="px-8 py-5 border-2 border-gray-100 rounded-2xl font-black uppercase tracking-widest hover:bg-gray-50 transition-all">Cancel</button>
-                      </div>
-                  </form>
-              </div>
-          </div>
+           <div className="fixed inset-0 bg-black/60 backdrop-blur-md z-[100] flex items-center justify-center p-6">
+                <div className="bg-white rounded-[3rem] p-12 max-w-xl w-full shadow-2xl max-h-[90vh] overflow-y-auto animate-in zoom-in duration-300">
+                    <div className="flex justify-between items-center mb-10 border-b pb-6"><h3 className="text-3xl font-black tracking-tighter capitalize">{editType} Editor</h3><button onClick={() => setIsEditing(false)}><X className="w-8 h-8" /></button></div>
+                    <form onSubmit={handleSaveItem} className="space-y-8">
+                        {['exhibition', 'artwork', 'collectable'].includes(editType!) && (
+                            <div className="space-y-6">
+                                <input required className="w-full border-2 border-gray-100 p-5 rounded-2xl font-bold outline-none focus:border-black" placeholder="Main Title / Name" value={editItem.title || editItem.name || ''} onChange={e => setEditItem((prev:any)=>({...prev, [editItem.title !== undefined ? 'title' : 'name']: e.target.value}))} />
+                                <div className="grid grid-cols-2 gap-4">
+                                    <input className="w-full border-2 border-gray-100 p-5 rounded-2xl font-bold outline-none focus:border-black" placeholder="Category" value={editItem.category || ''} onChange={e => setEditItem((prev:any)=>({...prev, category: e.target.value}))} />
+                                    {editType === 'collectable' && <input className="w-full border-2 border-gray-100 p-5 rounded-2xl font-bold outline-none focus:border-black" placeholder="Price" type="number" value={editItem.price || ''} onChange={e => setEditItem((prev:any)=>({...prev, price: Number(e.target.value)}))} />}
+                                </div>
+                            </div>
+                        )}
+                        {renderImageInput()}
+                        <div className="flex gap-4 pt-6"><button type="submit" disabled={isCompressing} className="flex-1 bg-black text-white py-5 rounded-2xl font-black uppercase tracking-widest hover:bg-gray-800 disabled:opacity-50">Save To System</button><button type="button" onClick={() => setIsEditing(false)} className="px-10 py-5 border-2 border-gray-100 rounded-2xl font-black uppercase tracking-widest">Cancel</button></div>
+                    </form>
+                </div>
+           </div>
        )}
     </div>
   );
