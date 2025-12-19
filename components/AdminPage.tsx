@@ -1,11 +1,11 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { Lock, Search, RefreshCw, LogOut, TrendingUp, Users, Calendar, Pen, Trash, Plus, ShoppingBag, Image as ImageIcon, Check, X, Package, Filter, Upload, Mail, BarChart3, PieChart, Home, RotateCcw, Layout, UserPlus, Eye, EyeOff, Tag, IndianRupee } from 'lucide-react';
+import { Lock, Search, RefreshCw, LogOut, TrendingUp, Users, Calendar, Pen, Trash, Plus, ShoppingBag, Image as ImageIcon, Check, X, Package, Filter, Upload, Mail, BarChart3, PieChart, Home, RotateCcw, Layout, UserPlus, Eye, EyeOff, Tag, IndianRupee, Trash2, Database, AlertTriangle, Link as LinkIcon, Info } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
-import { getExhibitions, saveExhibitions, getArtworks, saveArtworks, getCollectables, saveCollectables, getShopOrders, updateShopOrders, getNewsletterEmails, getBookings, getHomepageGallery, saveHomepageGallery, resetHomepageGallery, getPageAssets, getStaffMode, setStaffMode, savePageAssets } from '../services/data';
+import { getExhibitions, saveExhibitions, getArtworks, saveArtworks, getCollectables, saveCollectables, getShopOrders, updateShopOrders, getNewsletterEmails, getBookings, getHomepageGallery, saveHomepageGallery, resetHomepageGallery, getPageAssets, getStaffMode, setStaffMode, savePageAssets, getStorageUsage, clearAllAppData } from '../services/data';
 import { Exhibition, Artwork, Collectable, ShopOrder, Booking, PageAssets, TeamMember } from '../types';
 
-type Tab = 'bookings' | 'orders' | 'exhibitions' | 'collection' | 'shop' | 'newsletter' | 'homepage' | 'pages';
+type Tab = 'bookings' | 'orders' | 'exhibitions' | 'collection' | 'shop' | 'newsletter' | 'homepage' | 'pages' | 'settings';
 
 const AdminPage: React.FC = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -13,6 +13,7 @@ const AdminPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<Tab>('bookings');
   const [searchParams, setSearchParams] = useSearchParams();
   const [isStaffModeEnabled, setIsStaffModeEnabled] = useState(getStaffMode());
+  const [storageMB, setStorageMB] = useState(getStorageUsage());
   
   // Data State
   const [bookings, setBookings] = useState<Booking[]>([]);
@@ -41,6 +42,7 @@ const AdminPage: React.FC = () => {
   useEffect(() => {
     if (isAuthenticated) {
         loadData();
+        setStorageMB(getStorageUsage());
         
         // Handle deep links
         const tabParam = searchParams.get('tab') as Tab;
@@ -67,6 +69,7 @@ const AdminPage: React.FC = () => {
       setNewsletterEmails(getNewsletterEmails());
       setHomepageGallery(getHomepageGallery());
       setPageAssets(getPageAssets());
+      setStorageMB(getStorageUsage());
 
       const loadedBookings = getBookings();
       const loadedOrders = getShopOrders();
@@ -110,24 +113,31 @@ const AdminPage: React.FC = () => {
 
   const handleDelete = (id: string, type: 'exhibition' | 'artwork' | 'collectable' | 'gallery-image' | 'team-member') => {
       if (!window.confirm('Are you sure you want to delete this?')) return;
+      let success = false;
       if (type === 'exhibition') {
           const newData = exhibitions.filter(e => e.id !== id);
-          setExhibitions(newData); saveExhibitions(newData);
+          success = saveExhibitions(newData);
+          if (success) setExhibitions(newData);
       } else if (type === 'artwork') {
           const newData = artworks.filter(a => a.id !== id);
-          setArtworks(newData); saveArtworks(newData);
+          success = saveArtworks(newData);
+          if (success) setArtworks(newData);
       } else if (type === 'collectable') {
           const newData = collectables.filter(c => c.id !== id);
-          setCollectables(newData); saveCollectables(newData);
+          success = saveCollectables(newData);
+          if (success) setCollectables(newData);
       } else if (type === 'gallery-image' && activeTrackIdx !== null) {
           const updatedGallery = [...homepageGallery];
           updatedGallery[activeTrackIdx].images = updatedGallery[activeTrackIdx].images.filter((img: string) => img !== id);
-          setHomepageGallery(updatedGallery); saveHomepageGallery(updatedGallery);
+          success = saveHomepageGallery(updatedGallery);
+          if (success) setHomepageGallery(updatedGallery);
       } else if (type === 'team-member' && pageAssets) {
           const updatedAssets = { ...pageAssets };
           updatedAssets.about.team = updatedAssets.about.team.filter(m => m.id !== id);
-          setPageAssets(updatedAssets); savePageAssets(updatedAssets);
+          success = savePageAssets(updatedAssets);
+          if (success) setPageAssets(updatedAssets);
       }
+      setStorageMB(getStorageUsage());
   };
 
   const openEditor = (type: 'exhibition' | 'artwork' | 'collectable' | 'gallery-image' | 'page-asset' | 'team-member', item?: any, meta?: any) => {
@@ -140,6 +150,7 @@ const AdminPage: React.FC = () => {
 
   const handleSaveItem = (e: React.FormEvent) => {
       e.preventDefault();
+      let success = false;
       
       if (editType === 'gallery-image' && activeTrackIdx !== null) {
           const updatedGallery = [...homepageGallery];
@@ -150,7 +161,8 @@ const AdminPage: React.FC = () => {
               } else {
                   updatedGallery[activeTrackIdx].images = [...updatedGallery[activeTrackIdx].images, newImg];
               }
-              setHomepageGallery(updatedGallery); saveHomepageGallery(updatedGallery);
+              success = saveHomepageGallery(updatedGallery);
+              if (success) setHomepageGallery(updatedGallery);
           }
       } else if (editType === 'team-member' && pageAssets) {
           const updatedAssets = { ...pageAssets };
@@ -161,43 +173,101 @@ const AdminPage: React.FC = () => {
           } else {
               updatedAssets.about.team = [...updatedAssets.about.team, newMember];
           }
-          setPageAssets(updatedAssets); savePageAssets(updatedAssets);
+          success = savePageAssets(updatedAssets);
+          if (success) setPageAssets(updatedAssets);
       } else if (editType === 'page-asset' && activeAssetKey && pageAssets) {
           const [page, key] = activeAssetKey.split('.');
           const updatedAssets = { ...pageAssets };
           (updatedAssets as any)[page][key] = editItem.imageUrl || editItem.text;
-          setPageAssets(updatedAssets); savePageAssets(updatedAssets);
+          success = savePageAssets(updatedAssets);
+          if (success) setPageAssets(updatedAssets);
       } else {
           const id = editItem.id || Date.now().toString();
           const newItem = { ...editItem, id };
           if (editType === 'exhibition') {
               const updated = editItem.id ? exhibitions.map(ex => ex.id === id ? newItem : ex) : [...exhibitions, newItem];
-              setExhibitions(updated); saveExhibitions(updated);
+              success = saveExhibitions(updated);
+              if (success) setExhibitions(updated);
           } else if (editType === 'artwork') {
               const updated = editItem.id ? artworks.map(art => art.id === id ? newItem : art) : [...artworks, newItem];
-              setArtworks(updated); saveArtworks(updated);
+              success = saveArtworks(updated);
+              if (success) setArtworks(updated);
           } else if (editType === 'collectable') {
               const updated = editItem.id ? collectables.map(c => c.id === id ? newItem : c) : [...collectables, newItem];
-              setCollectables(updated); saveCollectables(updated);
+              success = saveCollectables(updated);
+              if (success) setCollectables(updated);
           }
       }
 
-      setIsEditing(false); setEditItem(null); setActiveTrackIdx(null); setActiveAssetKey(null);
-      setSearchParams({});
+      if (success) {
+        setIsEditing(false); setEditItem(null); setActiveTrackIdx(null); setActiveAssetKey(null);
+        setSearchParams({});
+        loadData();
+      }
   };
 
   const handleImageUpload = (file: File) => {
       if (!file) return;
+      if (file.size > 2 * 1024 * 1024) {
+          alert("This image is too large (>2MB). Please resize it before uploading to avoid browser storage limits.");
+          return;
+      }
       const reader = new FileReader();
-      reader.onloadend = () => setEditItem({ ...editItem, imageUrl: reader.result as string });
+      reader.onloadend = () => {
+          setEditItem((prev: any) => ({ ...prev, imageUrl: reader.result as string }));
+      };
       reader.readAsDataURL(file);
+  };
+
+  /**
+   * Helper to convert Google Drive Sharing links to Direct Image URLs
+   */
+  const transformImageUrl = (url: string) => {
+    if (!url) return '';
+    
+    // Regular Share Link
+    const driveMatch = url.match(/drive\.google\.com\/(?:file\/d\/|open\?id=)([a-zA-Z0-9_-]+)/);
+    if (driveMatch && driveMatch[1]) {
+        return `https://drive.google.com/uc?export=view&id=${driveMatch[1]}`;
+    }
+    
+    // Google Photos / Google User Content
+    if (url.includes('googleusercontent.com')) {
+        return url;
+    }
+
+    return url;
   };
 
   const renderImageInput = () => {
     const isDataUrl = editItem.imageUrl?.startsWith('data:');
+    const isDriveUrl = editItem.imageUrl?.includes('drive.google.com/uc');
+
     return (
       <div className="space-y-3">
-          <label className="text-xs font-bold uppercase text-gray-500">Image Asset</label>
+          <div className="flex justify-between items-center">
+            <div className="flex items-center gap-2">
+                <label className="text-xs font-bold uppercase text-gray-500">Image Asset</label>
+                {!isDataUrl && (
+                    <div className="group relative">
+                        <Info className="w-3 h-3 text-gray-300 cursor-help" />
+                        <div className="absolute left-0 bottom-full mb-2 w-48 bg-black text-white text-[10px] p-2 rounded leading-tight opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50">
+                            Paste a Google Drive "Share" link to save database space! Ensure permissions are set to "Anyone with the link".
+                        </div>
+                    </div>
+                )}
+            </div>
+            {editItem.imageUrl && (
+              <button 
+                type="button" 
+                onClick={() => setEditItem((prev: any) => ({ ...prev, imageUrl: '' }))}
+                className="text-xs font-bold text-red-500 flex items-center gap-1 hover:text-red-600"
+              >
+                <Trash2 className="w-3 h-3" /> Clear
+              </button>
+            )}
+          </div>
+          
           <div 
               className="border-2 border-dashed border-gray-300 rounded-xl p-6 flex flex-col items-center justify-center text-center cursor-pointer hover:bg-gray-50 hover:border-black transition-all group relative overflow-hidden bg-gray-50/50"
               onClick={() => document.getElementById('hidden-file-input')?.click()}
@@ -207,11 +277,11 @@ const AdminPage: React.FC = () => {
                   if (file) handleImageUpload(file);
               }} />
               {editItem.imageUrl ? (
-                  <div className={`relative ${editType === 'team-member' ? 'w-32 h-32 rounded-full' : 'w-full aspect-video rounded-lg'} bg-gray-200 overflow-hidden shadow-sm mx-auto`}>
+                  <div className={`relative ${editType === 'team-member' ? 'w-32 h-32 rounded-full' : 'w-full aspect-video rounded-lg'} bg-gray-200 overflow-hidden shadow-sm mx-auto animate-in fade-in duration-300`}>
                       <img src={editItem.imageUrl} alt="Preview" className="w-full h-full object-cover" />
                       <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex flex-col items-center justify-center text-white transition-opacity duration-200">
                           <Upload className="w-8 h-8 mb-2" />
-                          <span className="font-bold text-sm">Replace</span>
+                          <span className="font-bold text-sm">Replace Photo</span>
                       </div>
                   </div>
               ) : (
@@ -219,14 +289,34 @@ const AdminPage: React.FC = () => {
                       <div className="bg-white w-14 h-14 rounded-full flex items-center justify-center mx-auto mb-3 shadow-sm group-hover:scale-110 transition-transform">
                           <Upload className="w-6 h-6 text-gray-400" />
                       </div>
-                      <p className="text-sm font-bold text-gray-900">Click to upload</p>
+                      <p className="text-sm font-bold text-gray-900">Upload from Device</p>
+                      <p className="text-[10px] text-gray-400 mt-1 uppercase tracking-widest leading-none">Limit: 2MB</p>
                   </div>
               )}
           </div>
-          <input type="text" placeholder="Or paste image URL..." className="w-full border border-gray-200 px-4 py-2.5 rounded-lg bg-white text-sm focus:border-black outline-none"
-                  value={isDataUrl ? '' : (editItem.imageUrl || '')} 
-                  onChange={e => setEditItem({...editItem, imageUrl: e.target.value})} 
-                  disabled={!!isDataUrl} />
+
+          <div className="relative">
+            <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-300">
+                <LinkIcon className="w-4 h-4" />
+            </div>
+            <input 
+              type="text" 
+              placeholder="Or paste Google Drive link here..." 
+              className={`w-full border border-gray-200 pl-11 pr-16 py-4 rounded-xl bg-white text-sm focus:border-black outline-none transition-all ${isDriveUrl ? 'border-green-200 bg-green-50/10' : ''}`}
+              value={isDataUrl ? 'Local File (Base64)' : (editItem.imageUrl || '')} 
+              onChange={e => {
+                  const transformed = transformImageUrl(e.target.value);
+                  setEditItem((prev: any) => ({...prev, imageUrl: transformed}));
+              }} 
+              readOnly={!!isDataUrl} 
+            />
+            {isDataUrl && <div className="absolute right-3 top-1/2 -translate-y-1/2 bg-black text-white px-2 py-0.5 rounded text-[8px] font-bold">LOCAL</div>}
+            {isDriveUrl && <div className="absolute right-3 top-1/2 -translate-y-1/2 bg-blue-600 text-white px-2 py-0.5 rounded text-[8px] font-bold">DRIVE</div>}
+          </div>
+          
+          {!isDataUrl && editItem.imageUrl && !isDriveUrl && (
+              <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest px-2 italic">Using external URL — saves 99% storage space</p>
+          )}
       </div>
     );
   };
@@ -245,6 +335,8 @@ const AdminPage: React.FC = () => {
     );
   }
 
+  const usagePercent = Math.min(100, (Number(storageMB) / 5) * 100);
+
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
        <header className="bg-black text-white px-6 py-4 flex justify-between items-center sticky top-0 z-50">
@@ -259,17 +351,82 @@ const AdminPage: React.FC = () => {
                  Staff Mode {isStaffModeEnabled ? 'ON' : 'OFF'}
                </button>
            </div>
-           <button onClick={handleLogout} className="p-2 hover:bg-gray-800 rounded-full transition-colors"><LogOut className="w-5 h-5" /></button>
+           
+           <div className="flex items-center gap-4">
+               <div className="hidden md:flex flex-col items-end mr-4">
+                    <div className="flex items-center gap-2 mb-1">
+                        <Database className="w-3 h-3 text-gray-400" />
+                        <span className="text-[10px] font-bold uppercase text-gray-400">Usage: {storageMB} / 5.0MB</span>
+                    </div>
+                    <div className="w-32 h-1 bg-white/10 rounded-full overflow-hidden">
+                        <div className={`h-full transition-all ${usagePercent > 80 ? 'bg-red-500' : 'bg-green-500'}`} style={{ width: `${usagePercent}%` }} />
+                    </div>
+               </div>
+               <button onClick={handleLogout} className="p-2 hover:bg-gray-800 rounded-full transition-colors"><LogOut className="w-5 h-5" /></button>
+           </div>
        </header>
 
        <main className="flex-grow max-w-[1400px] w-full mx-auto p-6 md:p-10">
            <div className="flex flex-wrap gap-2 mb-8 border-b border-gray-200 pb-1">
-               {['bookings', 'orders', 'shop', 'exhibitions', 'collection', 'homepage', 'pages', 'newsletter'].map(t => (
+               {['bookings', 'orders', 'shop', 'exhibitions', 'collection', 'homepage', 'pages', 'newsletter', 'settings'].map(t => (
                    <button key={t} onClick={() => setActiveTab(t as Tab)} className={`px-4 py-2 text-sm font-bold uppercase tracking-wider border-b-2 transition-colors ${activeTab === t ? 'border-black text-black' : 'border-transparent text-gray-400 hover:text-gray-600'}`}>
                        {t === 'pages' ? 'Page Content' : t}
                    </button>
                ))}
            </div>
+
+           {activeTab === 'settings' && (
+               <div className="max-w-2xl animate-in fade-in slide-in-from-bottom-4">
+                   <h2 className="text-3xl font-black mb-8">System Settings</h2>
+                   <div className="space-y-6">
+                        <div className="bg-white p-8 rounded-2xl border border-gray-200 shadow-sm">
+                            <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
+                                <Database className="w-5 h-5" /> Database Optimization
+                            </h3>
+                            <p className="text-sm text-gray-500 mb-6 leading-relaxed">
+                                To prevent your photos from disappearing, we recommend using <strong>Google Drive</strong> or <strong>Imgur</strong> links. 
+                                <br/><br/>
+                                1. Upload your photo to Google Drive.<br/>
+                                2. Set permissions to "Anyone with the link can view".<br/>
+                                3. Paste the share link in the Image Asset field.
+                            </p>
+                            <div className="mb-8 p-4 bg-gray-50 rounded-xl border border-gray-100">
+                                <div className="flex justify-between items-center mb-2">
+                                    <span className="text-xs font-bold uppercase text-gray-400">Total Browser Storage Load</span>
+                                    <span className="text-xs font-bold">{storageMB} MB</span>
+                                </div>
+                                <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
+                                    <div className={`h-full transition-all ${usagePercent > 80 ? 'bg-red-500' : 'bg-green-500'}`} style={{ width: `${usagePercent}%` }} />
+                                </div>
+                            </div>
+                            <div className="flex flex-col sm:flex-row gap-4">
+                                <button 
+                                    onClick={() => { if(window.confirm('EXTREME WARNING: This will delete ALL custom exhibitions, artworks, products, and images, resetting MOCA to its factory default state. Continue?')) clearAllAppData(); }}
+                                    className="flex-1 bg-red-600 text-white py-3 rounded-xl font-bold text-sm uppercase flex items-center justify-center gap-2 hover:bg-red-700 transition-colors shadow-lg shadow-red-100"
+                                >
+                                    <RotateCcw className="w-4 h-4" /> Hard Reset App
+                                </button>
+                                <button 
+                                    onClick={() => loadData()}
+                                    className="flex-1 border-2 border-black text-black py-3 rounded-xl font-bold text-sm uppercase flex items-center justify-center gap-2 hover:bg-gray-50"
+                                >
+                                    <RefreshCw className="w-4 h-4" /> Sync Stats
+                                </button>
+                            </div>
+                        </div>
+
+                        {usagePercent > 85 && (
+                            <div className="bg-amber-50 border border-amber-200 p-6 rounded-2xl flex gap-4 items-start animate-pulse">
+                                <AlertTriangle className="w-6 h-6 text-amber-600 shrink-0" />
+                                <div>
+                                    <h4 className="font-bold text-amber-800 mb-1">Critical Storage Alert</h4>
+                                    <p className="text-sm text-amber-700">Database usage is {usagePercent.toFixed(0)}%. Avoid uploading new files from your device. Switch to Google Drive links to continue adding content safely.</p>
+                                </div>
+                            </div>
+                        )}
+                   </div>
+               </div>
+           )}
 
            {activeTab === 'shop' && (
                 <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2">
@@ -483,30 +640,30 @@ const AdminPage: React.FC = () => {
 
        {isEditing && (
           <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4">
-              <div className="bg-white rounded-2xl p-8 max-w-lg w-full shadow-2xl overflow-y-auto max-h-[90vh]">
+              <div className="bg-white rounded-2xl p-8 max-w-lg w-full shadow-2xl overflow-y-auto max-h-[90vh] animate-in zoom-in duration-300">
                   <h3 className="text-2xl font-black mb-6 border-b pb-4 capitalize">Edit {editType?.replace('-', ' ')}</h3>
                   <form onSubmit={handleSaveItem} className="space-y-6">
                       {editType === 'exhibition' && (
                           <div className="space-y-4">
-                              <input className="w-full border p-3 rounded-lg" placeholder="Title" value={editItem.title || ''} onChange={e => setEditItem({...editItem, title: e.target.value})} />
-                              <input className="w-full border p-3 rounded-lg" placeholder="Category" value={editItem.category || ''} onChange={e => setEditItem({...editItem, category: e.target.value})} />
-                              <textarea className="w-full border p-3 rounded-lg" placeholder="Description" value={editItem.description || ''} onChange={e => setEditItem({...editItem, description: e.target.value})} />
+                              <input required className="w-full border p-3 rounded-lg" placeholder="Title" value={editItem.title || ''} onChange={e => setEditItem((prev: any) => ({...prev, title: e.target.value}))} />
+                              <input required className="w-full border p-3 rounded-lg" placeholder="Category" value={editItem.category || ''} onChange={e => setEditItem((prev: any) => ({...prev, category: e.target.value}))} />
+                              <textarea required className="w-full border p-3 rounded-lg" placeholder="Description" value={editItem.description || ''} onChange={e => setEditItem((prev: any) => ({...prev, description: e.target.value}))} />
                               {renderImageInput()}
                           </div>
                       )}
                       {editType === 'collectable' && (
                           <div className="space-y-4">
-                              <input required className="w-full border p-3 rounded-lg" placeholder="Product Name" value={editItem.name || ''} onChange={e => setEditItem({...editItem, name: e.target.value})} />
+                              <input required className="w-full border p-3 rounded-lg" placeholder="Product Name" value={editItem.name || ''} onChange={e => setEditItem((prev: any) => ({...prev, name: e.target.value}))} />
                               <div className="grid grid-cols-2 gap-4">
                                   <div className="relative">
                                       <IndianRupee className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                                      <input required type="number" className="w-full border p-3 pl-10 rounded-lg" placeholder="Price" value={editItem.price || ''} onChange={e => setEditItem({...editItem, price: Number(e.target.value)})} />
+                                      <input required type="number" className="w-full border p-3 pl-10 rounded-lg" placeholder="Price" value={editItem.price || ''} onChange={e => setEditItem((prev: any) => ({...prev, price: Number(e.target.value)}))} />
                                   </div>
-                                  <input required className="w-full border p-3 rounded-lg" placeholder="Category" value={editItem.category || ''} onChange={e => setEditItem({...editItem, category: e.target.value})} />
+                                  <input required className="w-full border p-3 rounded-lg" placeholder="Category" value={editItem.category || ''} onChange={e => setEditItem((prev: any) => ({...prev, category: e.target.value}))} />
                               </div>
-                              <textarea className="w-full border p-3 rounded-lg" placeholder="Description" value={editItem.description || ''} onChange={e => setEditItem({...editItem, description: e.target.value})} />
+                              <textarea required className="w-full border p-3 rounded-lg" placeholder="Description" value={editItem.description || ''} onChange={e => setEditItem((prev: any) => ({...prev, description: e.target.value}))} />
                               <div className="flex items-center gap-2">
-                                  <input type="checkbox" id="inStock" checked={editItem.inStock} onChange={e => setEditItem({...editItem, inStock: e.target.checked})} />
+                                  <input type="checkbox" id="inStock" checked={editItem.inStock} onChange={e => setEditItem((prev: any) => ({...prev, inStock: e.target.checked}))} />
                                   <label htmlFor="inStock" className="text-sm font-bold">In Stock</label>
                               </div>
                               {renderImageInput()}
@@ -514,26 +671,26 @@ const AdminPage: React.FC = () => {
                       )}
                       {editType === 'artwork' && (
                           <div className="space-y-4">
-                              <input required className="w-full border p-3 rounded-lg" placeholder="Artwork Title" value={editItem.title || ''} onChange={e => setEditItem({...editItem, title: e.target.value})} />
+                              <input required className="w-full border p-3 rounded-lg" placeholder="Artwork Title" value={editItem.title || ''} onChange={e => setEditItem((prev: any) => ({...prev, title: e.target.value}))} />
                               <div className="grid grid-cols-2 gap-4">
-                                  <input required className="w-full border p-3 rounded-lg" placeholder="Artist" value={editItem.artist || ''} onChange={e => setEditItem({...editItem, artist: e.target.value})} />
-                                  <input required className="w-full border p-3 rounded-lg" placeholder="Year" value={editItem.year || ''} onChange={e => setEditItem({...editItem, year: e.target.value})} />
+                                  <input required className="w-full border p-3 rounded-lg" placeholder="Artist" value={editItem.artist || ''} onChange={e => setEditItem((prev: any) => ({...prev, artist: e.target.value}))} />
+                                  <input required className="w-full border p-3 rounded-lg" placeholder="Year" value={editItem.year || ''} onChange={e => setEditItem((prev: any) => ({...prev, year: e.target.value}))} />
                               </div>
-                              <input required className="w-full border p-3 rounded-lg" placeholder="Medium" value={editItem.medium || ''} onChange={e => setEditItem({...editItem, medium: e.target.value})} />
+                              <input required className="w-full border p-3 rounded-lg" placeholder="Medium" value={editItem.medium || ''} onChange={e => setEditItem((prev: any) => ({...prev, medium: e.target.value}))} />
                               {renderImageInput()}
                           </div>
                       )}
                       {editType === 'team-member' && (
                           <div className="space-y-4">
-                              <input required className="w-full border p-3 rounded-lg" placeholder="Full Name" value={editItem.name || ''} onChange={e => setEditItem({...editItem, name: e.target.value})} />
-                              <input required className="w-full border p-3 rounded-lg" placeholder="Role / Designation" value={editItem.role || ''} onChange={e => setEditItem({...editItem, role: e.target.value})} />
+                              <input required className="w-full border p-3 rounded-lg" placeholder="Full Name" value={editItem.name || ''} onChange={e => setEditItem((prev: any) => ({...prev, name: e.target.value}))} />
+                              <input required className="w-full border p-3 rounded-lg" placeholder="Role / Designation" value={editItem.role || ''} onChange={e => setEditItem((prev: any) => ({...prev, role: e.target.value}))} />
                               {renderImageInput()}
                           </div>
                       )}
                       {(editType === 'page-asset' || editType === 'gallery-image') && renderImageInput()}
                       <div className="flex gap-4 pt-4">
-                          <button type="submit" className="flex-1 bg-black text-white py-3 rounded-lg font-bold">Save Changes</button>
-                          <button type="button" onClick={() => setIsEditing(false)} className="px-6 py-3 border border-gray-200 rounded-lg font-bold">Cancel</button>
+                          <button type="submit" className="flex-1 bg-black text-white py-3 rounded-lg font-bold hover:bg-gray-800 transition-colors">Save Changes</button>
+                          <button type="button" onClick={() => setIsEditing(false)} className="px-6 py-3 border border-gray-200 rounded-lg font-bold hover:bg-gray-50 transition-colors">Cancel</button>
                       </div>
                   </form>
               </div>
