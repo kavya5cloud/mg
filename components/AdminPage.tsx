@@ -17,7 +17,7 @@ import {
 } from '../services/data';
 import { Exhibition, Artwork, Collectable, ShopOrder, Booking, PageAssets, TeamMember, Event } from '../types';
 
-type Tab = 'bookings' | 'shop' | 'exhibitions' | 'whatson' | 'collection' | 'homepage' | 'content' | 'newsletter' | 'settings';
+type Tab = 'bookings' | 'shop' | 'exhibitions' | 'whatson' | 'collection' | 'visit' | 'homepage' | 'content' | 'newsletter' | 'settings';
 
 const AdminPage: React.FC = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -266,8 +266,8 @@ const AdminPage: React.FC = () => {
 
   const usagePercent = Math.min(100, (Number(storageMB) / 500) * 100);
 
-  const primaryTabs: Tab[] = ['bookings', 'shop', 'exhibitions', 'whatson', 'collection', 'homepage'];
-  const secondaryTabs: Tab[] = ['content', 'newsletter', 'settings'];
+  const primaryTabs: Tab[] = ['bookings', 'shop', 'exhibitions', 'whatson', 'collection', 'visit'];
+  const secondaryTabs: Tab[] = ['homepage', 'content', 'newsletter', 'settings'];
 
   const renderTabButton = (t: Tab) => {
     const label = t === 'whatson' ? "What's On" : t;
@@ -360,6 +360,45 @@ const AdminPage: React.FC = () => {
                </div>
            )}
 
+           {activeTab === 'visit' && pageAssets && (
+               <div className="max-w-5xl space-y-12 animate-in fade-in slide-in-from-bottom-4">
+                   <div className="bg-gray-50 p-10 rounded-[3rem] border-2 border-gray-100">
+                       <h3 className="text-2xl font-black mb-10 border-b pb-6 uppercase tracking-widest flex items-center gap-4"><MapPin className="w-6 h-6" /> Visit Page Content</h3>
+                       <div className="grid md:grid-cols-2 gap-10">
+                           <div className="space-y-6">
+                               <div>
+                                   <label className="text-[10px] font-black text-gray-400 uppercase mb-2 block">Opening Hours String</label>
+                                   <input className="w-full border-2 p-4 rounded-2xl font-bold" value={pageAssets.visit.hours} onChange={e => { const u = {...pageAssets}; u.visit.hours = e.target.value; setPageAssets(u); savePageAssets(u); }} />
+                               </div>
+                               <div>
+                                   <label className="text-[10px] font-black text-gray-400 uppercase mb-2 block">Admission & Tickets Info</label>
+                                   <textarea rows={3} className="w-full border-2 p-4 rounded-2xl text-sm font-bold" value={pageAssets.visit.admissionInfo} onChange={e => { const u = {...pageAssets}; u.visit.admissionInfo = e.target.value; setPageAssets(u); savePageAssets(u); }} />
+                               </div>
+                               <div>
+                                   <label className="text-[10px] font-black text-gray-400 uppercase mb-2 block flex items-center gap-2"><Car className="w-3 h-3"/> Parking Info</label>
+                                   <textarea rows={3} className="w-full border-2 p-4 rounded-2xl text-sm font-bold" value={pageAssets.visit.parkingInfo} onChange={e => { const u = {...pageAssets}; u.visit.parkingInfo = e.target.value; setPageAssets(u); savePageAssets(u); }} />
+                               </div>
+                               <div>
+                                   <label className="text-[10px] font-black text-gray-400 uppercase mb-2 block">Location Address Text</label>
+                                   <textarea rows={2} className="w-full border-2 p-4 rounded-2xl text-sm font-bold" value={pageAssets.visit.locationText} onChange={e => { const u = {...pageAssets}; u.visit.locationText = e.target.value; setPageAssets(u); savePageAssets(u); }} />
+                               </div>
+                               <div>
+                                   <label className="text-[10px] font-black text-gray-400 uppercase mb-2 block">Google Maps Search Link</label>
+                                   <input className="w-full border-2 p-4 rounded-2xl text-xs font-mono" value={pageAssets.visit.googleMapsLink} onChange={e => { const u = {...pageAssets}; u.visit.googleMapsLink = e.target.value; setPageAssets(u); savePageAssets(u); }} />
+                               </div>
+                           </div>
+                           <div className="space-y-8">
+                               <div className="p-6 bg-white rounded-[2rem] border-2 border-gray-100">
+                                   <h4 className="text-[10px] font-black uppercase mb-4">Visit Page Hero Photo</h4>
+                                   <img src={pageAssets.visit.hero} className="w-full h-48 object-cover rounded-xl mb-4" />
+                                   <button onClick={() => openEditor('page-asset', {imageUrl: pageAssets.visit.hero}, 'visit.hero')} className="w-full bg-black text-white py-4 rounded-xl text-xs font-black uppercase tracking-widest">Update Visit Photo</button>
+                               </div>
+                           </div>
+                       </div>
+                   </div>
+               </div>
+           )}
+
            {activeTab === 'homepage' && (
                <div className="space-y-12 animate-in fade-in slide-in-from-bottom-4">
                    {homepageGallery.map((track, idx) => (
@@ -393,42 +432,6 @@ const AdminPage: React.FC = () => {
                            </div>
                            <div className="space-y-8">
                                 <div className="p-6 bg-white rounded-[2rem] border-2 border-gray-100"><h4 className="text-[10px] font-black uppercase mb-4">About Hero Image</h4><img src={pageAssets.about.hero} className="w-full h-32 object-cover rounded-xl mb-4" /><button onClick={() => openEditor('page-asset', {imageUrl: pageAssets.about.hero}, 'about.hero')} className="w-full bg-black text-white py-2 rounded-xl text-[10px] font-black uppercase">Edit Photo</button></div>
-                           </div>
-                       </div>
-                   </div>
-
-                   {/* Visit Section */}
-                   <div className="bg-gray-50 p-10 rounded-[3rem] border-2 border-gray-100">
-                       <h3 className="text-2xl font-black mb-10 border-b pb-6 uppercase tracking-widest flex items-center gap-4"><MapPin className="w-6 h-6" /> Visit Page Content</h3>
-                       <div className="grid md:grid-cols-2 gap-10">
-                           <div className="space-y-6">
-                               <div>
-                                   <label className="text-[10px] font-black text-gray-400 uppercase mb-2 block">Opening Hours String</label>
-                                   <input className="w-full border-2 p-4 rounded-2xl font-bold" value={pageAssets.visit.hours} onChange={e => { const u = {...pageAssets}; u.visit.hours = e.target.value; setPageAssets(u); savePageAssets(u); }} />
-                               </div>
-                               <div>
-                                   <label className="text-[10px] font-black text-gray-400 uppercase mb-2 block">Admission & Tickets Info</label>
-                                   <textarea rows={3} className="w-full border-2 p-4 rounded-2xl text-sm font-bold" value={pageAssets.visit.admissionInfo} onChange={e => { const u = {...pageAssets}; u.visit.admissionInfo = e.target.value; setPageAssets(u); savePageAssets(u); }} />
-                               </div>
-                               <div>
-                                   <label className="text-[10px] font-black text-gray-400 uppercase mb-2 block flex items-center gap-2"><Car className="w-3 h-3"/> Parking Info</label>
-                                   <textarea rows={3} className="w-full border-2 p-4 rounded-2xl text-sm font-bold" value={pageAssets.visit.parkingInfo} onChange={e => { const u = {...pageAssets}; u.visit.parkingInfo = e.target.value; setPageAssets(u); savePageAssets(u); }} />
-                               </div>
-                               <div>
-                                   <label className="text-[10px] font-black text-gray-400 uppercase mb-2 block flex items-center gap-2"><Accessibility className="w-3 h-3"/> Accessibility Details</label>
-                                   <textarea rows={3} className="w-full border-2 p-4 rounded-2xl text-sm font-bold" value={pageAssets.visit.accessibilityInfo} onChange={e => { const u = {...pageAssets}; u.visit.accessibilityInfo = e.target.value; setPageAssets(u); savePageAssets(u); }} />
-                               </div>
-                               <div>
-                                   <label className="text-[10px] font-black text-gray-400 uppercase mb-2 block">Location Address Text</label>
-                                   <textarea rows={2} className="w-full border-2 p-4 rounded-2xl text-sm font-bold" value={pageAssets.visit.locationText} onChange={e => { const u = {...pageAssets}; u.visit.locationText = e.target.value; setPageAssets(u); savePageAssets(u); }} />
-                               </div>
-                               <div>
-                                   <label className="text-[10px] font-black text-gray-400 uppercase mb-2 block">Google Maps Search Link</label>
-                                   <input className="w-full border-2 p-4 rounded-2xl text-xs font-mono" value={pageAssets.visit.googleMapsLink} onChange={e => { const u = {...pageAssets}; u.visit.googleMapsLink = e.target.value; setPageAssets(u); savePageAssets(u); }} />
-                               </div>
-                           </div>
-                           <div className="space-y-8">
-                               <div className="p-6 bg-white rounded-[2rem] border-2 border-gray-100"><h4 className="text-[10px] font-black uppercase mb-4">Visit Page Hero</h4><img src={pageAssets.visit.hero} className="w-full h-48 object-cover rounded-xl mb-4" /><button onClick={() => openEditor('page-asset', {imageUrl: pageAssets.visit.hero}, 'visit.hero')} className="w-full bg-black text-white py-2 rounded-xl text-[10px] font-black uppercase">Edit Photo</button></div>
                            </div>
                        </div>
                    </div>
