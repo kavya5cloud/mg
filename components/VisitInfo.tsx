@@ -1,6 +1,6 @@
 
 import React, { useEffect, useState } from 'react';
-import { Clock, MapPin, Calendar, ExternalLink, Ticket } from 'lucide-react';
+import { Clock, MapPin, Calendar, ExternalLink, Ticket, Car, Accessibility } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { getPageAssets } from '../services/data';
 import { PageAssets } from '../types';
@@ -35,7 +35,7 @@ const VisitInfo: React.FC = () => {
                                 <span className="font-semibold text-black">Mondays</span> 
                                 <span className="uppercase text-[10px] font-black tracking-widest bg-gray-200 px-2 py-0.5 rounded">Closed</span>
                             </li>
-                            <li className="text-[10px] text-gray-400 mt-2 uppercase tracking-widest font-black">Last entry 45 mins before closing</li>
+                            <li className="text-[10px] text-gray-400 mt-2 uppercase tracking-widest font-black text-left">Last entry 45 mins before closing</li>
                         </ul>
                     </div>
 
@@ -53,18 +53,24 @@ const VisitInfo: React.FC = () => {
                          </Link>
                     </div>
 
-                    {/* Planning */}
-                    <div className="flex flex-col items-start">
-                         <div className="flex items-center gap-4 mb-6">
-                             <Calendar className="w-6 h-6 text-black" />
-                             <h3 className="text-2xl font-bold uppercase tracking-tight">What's On</h3>
-                         </div>
-                         <p className="text-gray-600 mb-8 max-w-md leading-relaxed font-medium">
-                            Discover current exhibitions, artist talks, and special film screenings happening this week.
-                         </p>
-                         <Link to="/whatson" className="text-sm font-black uppercase tracking-widest border-b-2 border-black pb-1 hover:text-gray-500 hover:border-gray-300 transition-colors">
-                            View Full Calendar
-                         </Link>
+                    {/* Logistics Row */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                        {/* Parking */}
+                        <div className="flex flex-col items-start">
+                             <div className="flex items-center gap-4 mb-4">
+                                 <Car className="w-5 h-5 text-black" />
+                                 <h4 className="text-sm font-black uppercase tracking-widest">Parking</h4>
+                             </div>
+                             <p className="text-gray-500 text-sm leading-relaxed">{assets.visit.parkingInfo}</p>
+                        </div>
+                        {/* Accessibility */}
+                        <div className="flex flex-col items-start">
+                             <div className="flex items-center gap-4 mb-4">
+                                 <Accessibility className="w-5 h-5 text-black" />
+                                 <h4 className="text-sm font-black uppercase tracking-widest">Accessibility</h4>
+                             </div>
+                             <p className="text-gray-500 text-sm leading-relaxed">{assets.visit.accessibilityInfo}</p>
+                        </div>
                     </div>
                 </div>
 
