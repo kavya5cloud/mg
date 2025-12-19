@@ -89,6 +89,7 @@ const AdminPage: React.FC = () => {
   const handleDelete = async (id: string, type: string) => {
       if (!window.confirm('Confirm Deletion?')) return;
       
+      setSaveStatus('saving');
       if (type === 'exhibition') {
           const newData = exhibitions.filter(e => e.id !== id);
           await saveExhibitions(newData);
@@ -116,6 +117,9 @@ const AdminPage: React.FC = () => {
           await savePageAssets(updatedAssets);
           setPageAssets(updatedAssets);
       }
+      
+      setSaveStatus('saved');
+      setTimeout(() => setSaveStatus('idle'), 2000);
       setStorageMB(getStorageUsage());
   };
 
@@ -130,6 +134,7 @@ const AdminPage: React.FC = () => {
 
   const handleSaveItem = async (e: React.FormEvent) => {
       e.preventDefault();
+      setSaveStatus('saving');
       
       if (editType === 'gallery-image' && activeTrackIdx !== null) {
           const updatedGallery = [...homepageGallery];
@@ -177,6 +182,8 @@ const AdminPage: React.FC = () => {
           }
       }
 
+      setSaveStatus('saved');
+      setTimeout(() => setSaveStatus('idle'), 2000);
       setIsEditing(false);
       loadData();
   };
@@ -185,10 +192,8 @@ const AdminPage: React.FC = () => {
     if (!pageAssets) return;
     setSaveStatus('saving');
     await savePageAssets(pageAssets);
-    setTimeout(() => {
-        setSaveStatus('saved');
-        setTimeout(() => setSaveStatus('idle'), 2000);
-    }, 500);
+    setSaveStatus('saved');
+    setTimeout(() => setSaveStatus('idle'), 2000);
   };
 
   const handleImageUpload = (file: File) => {
@@ -319,6 +324,17 @@ const AdminPage: React.FC = () => {
                    {secondaryTabs.map(renderTabButton)}
                </div>
            </div>
+
+           {/* Global Save Status Notification */}
+           {saveStatus !== 'idle' && (
+             <div className={`fixed top-24 right-10 z-[70] px-6 py-4 rounded-2xl shadow-2xl flex items-center gap-4 animate-in slide-in-from-right-10 duration-300 ${saveStatus === 'saving' ? 'bg-black text-white' : 'bg-green-500 text-white'}`}>
+                {saveStatus === 'saving' ? <RefreshCw className="w-5 h-5 animate-spin" /> : <Check className="w-5 h-5" />}
+                <div className="flex flex-col">
+                  <span className="text-xs font-black uppercase tracking-widest">{saveStatus === 'saving' ? 'Persisting...' : 'Database Synchronized'}</span>
+                  <span className="text-[10px] opacity-70">{saveStatus === 'saving' ? 'Writing to storage archives' : 'All changes safely stored'}</span>
+                </div>
+             </div>
+           )}
 
            {activeTab === 'bookings' && (
                <div className="bg-white border-2 border-gray-100 rounded-[3rem] overflow-hidden shadow-sm animate-in fade-in slide-in-from-bottom-4">
