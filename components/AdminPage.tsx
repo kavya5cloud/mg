@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { Lock, Search, RefreshCw, LogOut, Pen, Trash, Plus, ShoppingBag, Image as ImageIcon, Check, X, Package, Filter, Upload, Mail, Home, RotateCcw, UserPlus, Eye, EyeOff, IndianRupee, Trash2, Database, AlertTriangle, Link as LinkIcon, Info, ExternalLink, Zap, ShieldCheck, Ticket, Users } from 'lucide-react';
+import { Lock, Search, RefreshCw, LogOut, Pen, Trash, Plus, ShoppingBag, Image as ImageIcon, Check, X, Package, Filter, Upload, Mail, Home, RotateCcw, UserPlus, Eye, EyeOff, IndianRupee, Trash2, Database, AlertTriangle, Link as LinkIcon, Info, ExternalLink, Zap, ShieldCheck, Ticket, Users, Tag, Box } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
 import { 
     getExhibitions, saveExhibitions, 
@@ -113,7 +113,7 @@ const AdminPage: React.FC = () => {
 
   const openEditor = (type: any, item?: any, meta?: any) => {
       setEditType(type);
-      setEditItem(item ? { ...item } : { inStock: true }); 
+      setEditItem(item ? { ...item } : { inStock: true, price: 0 }); 
       setPreviewError(false);
       setIsEditing(true);
       if (type === 'gallery-image') setActiveTrackIdx(meta);
@@ -303,6 +303,34 @@ const AdminPage: React.FC = () => {
                </div>
            )}
 
+           {activeTab === 'shop' && (
+               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-10 animate-in fade-in">
+                    <button onClick={() => openEditor('collectable')} className="bg-gray-50 border-4 border-dashed border-gray-100 rounded-[3rem] h-[450px] flex flex-col items-center justify-center text-gray-300 hover:border-black hover:text-black transition-all group">
+                        <Plus className="w-16 h-16 mb-4 group-hover:scale-110 transition-transform" /> <span className="font-black text-xs uppercase tracking-widest">New Product</span>
+                    </button>
+                    {collectables.map(item => (
+                        <div key={item.id} className="bg-white border-2 border-gray-50 rounded-[3rem] overflow-hidden flex flex-col group hover:shadow-2xl transition-all relative">
+                            {item.inStock === false && <div className="absolute top-6 left-6 z-10 bg-red-500 text-white px-3 py-1 rounded-full text-[8px] font-black uppercase">Out of Stock</div>}
+                            <div className="h-64 relative overflow-hidden bg-gray-50">
+                                <img src={item.imageUrl} className={`w-full h-full object-cover mix-blend-multiply p-4 ${item.inStock === false ? 'grayscale' : ''}`} />
+                                <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-all flex items-center justify-center gap-4">
+                                    <button onClick={() => openEditor('collectable', item)} className="p-4 bg-white rounded-full hover:scale-110 transition-transform"><Pen className="w-6 h-6" /></button>
+                                    <button onClick={() => handleDelete(item.id, 'collectable')} className="p-4 bg-white text-red-600 rounded-full hover:scale-110 transition-transform"><Trash className="w-6 h-6" /></button>
+                                </div>
+                            </div>
+                            <div className="p-8 flex-grow">
+                                <div className="flex justify-between items-start mb-2">
+                                    <p className="text-[9px] text-gray-400 font-black uppercase tracking-widest">{item.category}</p>
+                                    <p className="font-black text-lg">₹{item.price.toLocaleString()}</p>
+                                </div>
+                                <h3 className="font-black text-xl tracking-tighter mb-2">{item.name}</h3>
+                                <p className="text-xs text-gray-500 line-clamp-2 leading-relaxed">{item.description}</p>
+                            </div>
+                        </div>
+                    ))}
+               </div>
+           )}
+
            {activeTab === 'homepage' && (
                <div className="space-y-12 animate-in fade-in slide-in-from-bottom-4">
                    {homepageGallery.map((track, idx) => (
@@ -412,12 +440,38 @@ const AdminPage: React.FC = () => {
                 <div className="bg-white rounded-[3rem] p-12 max-w-xl w-full shadow-2xl max-h-[90vh] overflow-y-auto animate-in zoom-in duration-300">
                     <div className="flex justify-between items-center mb-10 border-b pb-6"><h3 className="text-3xl font-black tracking-tighter capitalize">{editType} Editor</h3><button onClick={() => setIsEditing(false)}><X className="w-8 h-8" /></button></div>
                     <form onSubmit={handleSaveItem} className="space-y-8">
-                        {['exhibition', 'artwork', 'collectable'].includes(editType!) && (
+                        {editType === 'collectable' && (
                             <div className="space-y-6">
-                                <input required className="w-full border-2 border-gray-100 p-5 rounded-2xl font-bold outline-none focus:border-black" placeholder="Main Title / Name" value={editItem.title || editItem.name || ''} onChange={e => setEditItem((prev:any)=>({...prev, [editItem.title !== undefined ? 'title' : 'name']: e.target.value}))} />
+                                <div className="flex items-center gap-4 bg-gray-50 p-4 rounded-2xl border border-gray-100 mb-4">
+                                    <div className="p-3 bg-black text-white rounded-full"><Tag className="w-5 h-5" /></div>
+                                    <p className="text-xs font-bold uppercase tracking-widest">Product Catalog Details</p>
+                                </div>
+                                <input required className="w-full border-2 border-gray-100 p-5 rounded-2xl font-bold outline-none focus:border-black" placeholder="Product Name" value={editItem.name || ''} onChange={e => setEditItem((prev:any)=>({...prev, name: e.target.value}))} />
                                 <div className="grid grid-cols-2 gap-4">
                                     <input className="w-full border-2 border-gray-100 p-5 rounded-2xl font-bold outline-none focus:border-black" placeholder="Category" value={editItem.category || ''} onChange={e => setEditItem((prev:any)=>({...prev, category: e.target.value}))} />
-                                    {editType === 'collectable' && <input className="w-full border-2 border-gray-100 p-5 rounded-2xl font-bold outline-none focus:border-black" placeholder="Price" type="number" value={editItem.price || ''} onChange={e => setEditItem((prev:any)=>({...prev, price: Number(e.target.value)}))} />}
+                                    <div className="relative">
+                                        <IndianRupee className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
+                                        <input className="w-full border-2 border-gray-100 p-5 pl-10 rounded-2xl font-bold outline-none focus:border-black" placeholder="Price" type="number" value={editItem.price || ''} onChange={e => setEditItem((prev:any)=>({...prev, price: Number(e.target.value)}))} />
+                                    </div>
+                                </div>
+                                <textarea className="w-full border-2 border-gray-100 p-5 rounded-2xl text-sm outline-none focus:border-black" rows={3} placeholder="Product Description" value={editItem.description || ''} onChange={e => setEditItem((prev:any)=>({...prev, description: e.target.value}))} />
+                                <div className="flex items-center gap-4 bg-gray-50 p-4 rounded-2xl">
+                                    <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 flex-grow">Inventory Status</label>
+                                    <button 
+                                        type="button" 
+                                        onClick={() => setEditItem((prev:any) => ({...prev, inStock: !prev.inStock}))}
+                                        className={`px-6 py-2 rounded-full text-[10px] font-black uppercase tracking-widest transition-all ${editItem.inStock !== false ? 'bg-green-500 text-white' : 'bg-red-500 text-white'}`}
+                                    >
+                                        {editItem.inStock !== false ? 'In Stock' : 'Sold Out'}
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+                        {['exhibition', 'artwork'].includes(editType!) && (
+                            <div className="space-y-6">
+                                <input required className="w-full border-2 border-gray-100 p-5 rounded-2xl font-bold outline-none focus:border-black" placeholder="Main Title" value={editItem.title || ''} onChange={e => setEditItem((prev:any)=>({...prev, title: e.target.value}))} />
+                                <div className="grid grid-cols-2 gap-4">
+                                    <input className="w-full border-2 border-gray-100 p-5 rounded-2xl font-bold outline-none focus:border-black" placeholder="Category" value={editItem.category || ''} onChange={e => setEditItem((prev:any)=>({...prev, category: e.target.value}))} />
                                 </div>
                             </div>
                         )}
