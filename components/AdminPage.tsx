@@ -431,7 +431,16 @@ const AdminPage: React.FC = () => {
                                <div><label className="text-[10px] font-black text-gray-400 uppercase mb-2 block">Description Para</label><textarea rows={6} className="w-full border-2 p-4 rounded-2xl text-sm" value={pageAssets.about.introPara1} onChange={e => { const u = {...pageAssets}; u.about.introPara1 = e.target.value; setPageAssets(u); savePageAssets(u); }} /></div>
                            </div>
                            <div className="space-y-8">
-                                <div className="p-6 bg-white rounded-[2rem] border-2 border-gray-100"><h4 className="text-[10px] font-black uppercase mb-4">About Hero Image</h4><img src={pageAssets.about.hero} className="w-full h-32 object-cover rounded-xl mb-4" /><button onClick={() => openEditor('page-asset', {imageUrl: pageAssets.about.hero}, 'about.hero')} className="w-full bg-black text-white py-2 rounded-xl text-[10px] font-black uppercase">Edit Photo</button></div>
+                                <div className="p-6 bg-white rounded-[2rem] border-2 border-gray-100">
+                                   <h4 className="text-[10px] font-black uppercase mb-4">About Hero Image</h4>
+                                   <img src={pageAssets.about.hero} className="w-full h-32 object-cover rounded-xl mb-4" />
+                                   <button onClick={() => openEditor('page-asset', {imageUrl: pageAssets.about.hero}, 'about.hero')} className="w-full bg-black text-white py-2 rounded-xl text-[10px] font-black uppercase">Edit Photo</button>
+                                </div>
+                                <div className="p-6 bg-white rounded-[2rem] border-2 border-gray-100">
+                                   <h4 className="text-[10px] font-black uppercase mb-4">Main Atrium Image</h4>
+                                   <img src={pageAssets.about.atrium} className="w-full h-32 object-cover rounded-xl mb-4" />
+                                   <button onClick={() => openEditor('page-asset', {imageUrl: pageAssets.about.atrium}, 'about.atrium')} className="w-full bg-black text-white py-2 rounded-xl text-[10px] font-black uppercase">Edit Photo</button>
+                                </div>
                            </div>
                        </div>
                    </div>
