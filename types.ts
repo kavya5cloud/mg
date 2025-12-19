@@ -110,6 +110,8 @@ export interface PageAssets {
     locationText: string;
     googleMapsLink: string;
     admissionInfo: string;
+    parkingInfo: string;
+    accessibilityInfo: string;
   };
   membership: {
     hero: string;
