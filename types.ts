@@ -111,7 +111,6 @@ export interface PageAssets {
     googleMapsLink: string;
     admissionInfo: string;
     parkingInfo: string;
-    accessibilityInfo: string;
   };
   membership: {
     hero: string;
