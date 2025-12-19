@@ -1,6 +1,6 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
-import { Menu, X, Search, Ticket, Heart, ChevronRight, Lock } from 'lucide-react';
+import { Menu, X, Search, Ticket, Heart, ChevronRight, Lock, Calendar } from 'lucide-react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import LogoGeometric from './Logo';
 import { getExhibitions, getArtworks, getCollectables } from '../services/data';
@@ -14,6 +14,7 @@ const Header: React.FC = () => {
 
   const navLinks = [
     { name: 'Visit', path: '/visit' },
+    { name: "What's On", path: '/whatson' },
     { name: 'Exhibitions', path: '/exhibitions' },
     { name: 'Collection', path: '/collection' },
     { name: 'Shop', path: '/shop' },
@@ -42,7 +43,7 @@ const Header: React.FC = () => {
       { title: 'Book Tickets', path: '/booking', type: 'Page' },
       { title: 'The Collection', path: '/collection', type: 'Page' },
       { title: 'Membership', path: '/membership', type: 'Page' },
-      { title: 'Volunteer', path: '/volunteer', type: 'Page' },
+      { title: "What's On", path: '/whatson', type: 'Page' },
     ];
     pages.forEach(page => {
       if (page.title.toLowerCase().includes(query)) {
