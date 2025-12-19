@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { Lock, Search, RefreshCw, LogOut, Pen, Trash, Plus, ShoppingBag, Image as ImageIcon, Check, X, Package, Filter, Upload, Mail, Home, RotateCcw, UserPlus, Eye, EyeOff, IndianRupee, Trash2, Database, AlertTriangle, Link as LinkIcon, Info, ExternalLink, Zap, ShieldCheck, Ticket, Users, Tag, Box, HardDrive, Calendar, MapPin } from 'lucide-react';
+import { Lock, Search, RefreshCw, LogOut, Pen, Trash, Plus, ShoppingBag, Image as ImageIcon, Check, X, Package, Filter, Upload, Mail, Home, RotateCcw, UserPlus, Eye, EyeOff, IndianRupee, Trash2, Database, AlertTriangle, Link as LinkIcon, Info, ExternalLink, Zap, ShieldCheck, Ticket, Users, Tag, Box, HardDrive, Calendar, MapPin, Car, Accessibility, MessageSquare } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
 import { 
     getExhibitions, saveExhibitions, 
@@ -389,11 +389,19 @@ const AdminPage: React.FC = () => {
                                </div>
                                <div>
                                    <label className="text-[10px] font-black text-gray-400 uppercase mb-2 block">Admission & Tickets Info</label>
-                                   <textarea rows={4} className="w-full border-2 p-4 rounded-2xl text-sm font-bold" value={pageAssets.visit.admissionInfo} onChange={e => { const u = {...pageAssets}; u.visit.admissionInfo = e.target.value; setPageAssets(u); savePageAssets(u); }} />
+                                   <textarea rows={3} className="w-full border-2 p-4 rounded-2xl text-sm font-bold" value={pageAssets.visit.admissionInfo} onChange={e => { const u = {...pageAssets}; u.visit.admissionInfo = e.target.value; setPageAssets(u); savePageAssets(u); }} />
+                               </div>
+                               <div>
+                                   <label className="text-[10px] font-black text-gray-400 uppercase mb-2 block flex items-center gap-2"><Car className="w-3 h-3"/> Parking Info</label>
+                                   <textarea rows={3} className="w-full border-2 p-4 rounded-2xl text-sm font-bold" value={pageAssets.visit.parkingInfo} onChange={e => { const u = {...pageAssets}; u.visit.parkingInfo = e.target.value; setPageAssets(u); savePageAssets(u); }} />
+                               </div>
+                               <div>
+                                   <label className="text-[10px] font-black text-gray-400 uppercase mb-2 block flex items-center gap-2"><Accessibility className="w-3 h-3"/> Accessibility Details</label>
+                                   <textarea rows={3} className="w-full border-2 p-4 rounded-2xl text-sm font-bold" value={pageAssets.visit.accessibilityInfo} onChange={e => { const u = {...pageAssets}; u.visit.accessibilityInfo = e.target.value; setPageAssets(u); savePageAssets(u); }} />
                                </div>
                                <div>
                                    <label className="text-[10px] font-black text-gray-400 uppercase mb-2 block">Location Address Text</label>
-                                   <textarea rows={3} className="w-full border-2 p-4 rounded-2xl text-sm font-bold" value={pageAssets.visit.locationText} onChange={e => { const u = {...pageAssets}; u.visit.locationText = e.target.value; setPageAssets(u); savePageAssets(u); }} />
+                                   <textarea rows={2} className="w-full border-2 p-4 rounded-2xl text-sm font-bold" value={pageAssets.visit.locationText} onChange={e => { const u = {...pageAssets}; u.visit.locationText = e.target.value; setPageAssets(u); savePageAssets(u); }} />
                                </div>
                                <div>
                                    <label className="text-[10px] font-black text-gray-400 uppercase mb-2 block">Google Maps Search Link</label>
@@ -401,7 +409,7 @@ const AdminPage: React.FC = () => {
                                </div>
                            </div>
                            <div className="space-y-8">
-                               <div className="p-6 bg-white rounded-[2rem] border-2 border-gray-100"><h4 className="text-[10px] font-black uppercase mb-4">Visit Page Hero</h4><img src={pageAssets.visit.hero} className="w-full h-32 object-cover rounded-xl mb-4" /><button onClick={() => openEditor('page-asset', {imageUrl: pageAssets.visit.hero}, 'visit.hero')} className="w-full bg-black text-white py-2 rounded-xl text-[10px] font-black uppercase">Edit Photo</button></div>
+                               <div className="p-6 bg-white rounded-[2rem] border-2 border-gray-100"><h4 className="text-[10px] font-black uppercase mb-4">Visit Page Hero</h4><img src={pageAssets.visit.hero} className="w-full h-48 object-cover rounded-xl mb-4" /><button onClick={() => openEditor('page-asset', {imageUrl: pageAssets.visit.hero}, 'visit.hero')} className="w-full bg-black text-white py-2 rounded-xl text-[10px] font-black uppercase">Edit Photo</button></div>
                            </div>
                        </div>
                    </div>
@@ -566,7 +574,15 @@ const AdminPage: React.FC = () => {
                                     {editType === 'event' && <input required className="w-full border-2 border-gray-100 p-5 rounded-2xl font-bold outline-none focus:border-black" placeholder="Date & Time" value={editItem.date || ''} onChange={e => setEditItem((prev:any)=>({...prev, date: e.target.value}))} />}
                                     {editType === 'exhibition' && <input required className="w-full border-2 border-gray-100 p-5 rounded-2xl font-bold outline-none focus:border-black" placeholder="Date Range" value={editItem.dateRange || ''} onChange={e => setEditItem((prev:any)=>({...prev, dateRange: e.target.value}))} />}
                                 </div>
-                                {editType === 'event' && <input required className="w-full border-2 border-gray-100 p-5 rounded-2xl font-bold outline-none focus:border-black" placeholder="Location Room" value={editItem.location || ''} onChange={e => setEditItem((prev:any)=>({...prev, location: e.target.value}))} />}
+                                {editType === 'event' && (
+                                    <>
+                                        <input required className="w-full border-2 border-gray-100 p-5 rounded-2xl font-bold outline-none focus:border-black" placeholder="Location Room" value={editItem.location || ''} onChange={e => setEditItem((prev:any)=>({...prev, location: e.target.value}))} />
+                                        <div className="space-y-2">
+                                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-2"><MessageSquare className="w-3 h-3"/> Event Description</label>
+                                            <textarea rows={4} className="w-full border-2 border-gray-100 p-5 rounded-2xl text-sm outline-none focus:border-black" placeholder="Describe the event details..." value={editItem.description || ''} onChange={e => setEditItem((prev:any)=>({...prev, description: e.target.value}))} />
+                                        </div>
+                                    </>
+                                )}
                             </div>
                         )}
                         {editType === 'team-member' && (
