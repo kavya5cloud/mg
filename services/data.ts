@@ -1,6 +1,6 @@
 
 import { EXHIBITIONS, ARTWORKS, COLLECTABLES } from '../constants';
-import { Exhibition, Artwork, Collectable, ShopOrder, Review, Booking, PageAssets } from '../types';
+import { Exhibition, Artwork, Collectable, ShopOrder, Review, Booking, PageAssets, Event } from '../types';
 
 // Persistence Config
 const DB_NAME = 'MOCA_GANDHINAGAR_DB';
@@ -12,6 +12,36 @@ const DEFAULT_GALLERY = [
   { speed: 0.1, direction: -1, images: ["https://picsum.photos/id/20/800/800", "https://picsum.photos/id/24/800/800", "https://picsum.photos/id/28/800/800", "https://picsum.photos/id/30/800/800"] },
   { speed: 0.25, direction: 1, images: ["https://picsum.photos/id/36/800/800", "https://picsum.photos/id/38/800/800", "https://picsum.photos/id/42/800/800", "https://picsum.photos/id/48/800/800"] },
   { speed: 0.15, direction: -1, images: ["https://picsum.photos/id/52/800/800", "https://picsum.photos/id/55/800/800", "https://picsum.photos/id/60/800/800", "https://picsum.photos/id/64/800/800"] }
+];
+
+const DEFAULT_EVENTS: Event[] = [
+    {
+        id: 'ev1',
+        title: "Curator's Talk: Modernism in Gujarat",
+        type: "Talk",
+        date: "Today, 4:00 PM",
+        location: "Auditorium",
+        imageUrl: "https://picsum.photos/id/20/400/300",
+        description: "Join us for an intimate session discussing the roots of Indian modernism."
+    },
+    {
+        id: 'ev2',
+        title: "Clay & Form: Sculpting Workshop",
+        type: "Workshop",
+        date: "Sat, Oct 12, 11:00 AM",
+        location: "Studio A",
+        imageUrl: "https://picsum.photos/id/30/400/300",
+        description: "A hands-on workshop led by visiting artists from NID."
+    },
+    {
+        id: 'ev3',
+        title: "Film Screening: Kurosawa's Dreams",
+        type: "Film",
+        date: "Sun, Oct 13, 6:00 PM",
+        location: "Cinema Hall",
+        imageUrl: "https://picsum.photos/id/40/400/300",
+        description: "A special 4K restoration screening of the Japanese masterpiece."
+    }
 ];
 
 const DEFAULT_PAGE_ASSETS: PageAssets = {
@@ -37,7 +67,13 @@ const DEFAULT_PAGE_ASSETS: PageAssets = {
       { id: 't3', name: 'Sanjay Desai', role: 'Development Manager', imageUrl: 'https://picsum.photos/id/66/400/400' }
     ]
   },
-  visit: { hero: "https://picsum.photos/id/20/400/300" },
+  visit: { 
+    hero: "https://picsum.photos/id/20/400/300",
+    hours: "Tuesday — Sunday: 10:30 — 18:00",
+    locationText: "Inside Veer Residency, Gandhinagar Mahudi, Gujarat",
+    googleMapsLink: "https://www.google.com/maps/search/?api=1&query=23.506205,72.754318",
+    admissionInfo: "General admission to MOCA Gandhinagar is currently free for all visitors. However, pre-registration online is recommended to ensure entry during peak hours."
+  },
   membership: { hero: "https://picsum.photos/id/1015/600/600" },
   home: { heroBg: "" }
 };
@@ -67,7 +103,7 @@ const initDB = (): Promise<IDBDatabase> => {
 
 // Migrate from LocalStorage to IndexedDB
 const migrateData = async () => {
-    const keys = ['moca_exhibitions', 'moca_artworks', 'moca_collectables', 'moca_shop_orders', 'moca_bookings', 'moca_newsletter', 'moca_reviews', 'moca_homepage_gallery', 'moca_page_assets', 'moca_staff_mode'];
+    const keys = ['moca_exhibitions', 'moca_artworks', 'moca_events', 'moca_collectables', 'moca_shop_orders', 'moca_bookings', 'moca_newsletter', 'moca_reviews', 'moca_homepage_gallery', 'moca_page_assets', 'moca_staff_mode'];
     const db = await initDB();
     
     for (const key of keys) {
@@ -112,7 +148,6 @@ export const bootstrapMuseumData = async () => {
     });
 };
 
-// Standard Persistence Helpers (Sync API, Async Background Save)
 const getFromCache = <T>(key: string, defaultValue: T): T => {
     if (cache[key] !== undefined) return cache[key];
     return defaultValue;
@@ -125,9 +160,7 @@ const saveToDB = async (key: string, data: any) => {
     tx.objectStore(STORE_NAME).put(data, key);
 };
 
-// PUBLIC API
 export const getStorageUsage = () => {
-    // Estimating indexedDB usage is complex, we'll return an "unlimited" status or size of cache
     const size = new Blob([JSON.stringify(cache)]).size;
     return (size / 1024 / 1024).toFixed(2);
 };
@@ -150,6 +183,9 @@ export const saveExhibitions = (data: Exhibition[]) => { saveToDB('moca_exhibiti
 export const getArtworks = (): Artwork[] => getFromCache('moca_artworks', ARTWORKS);
 export const saveArtworks = (data: Artwork[]) => { saveToDB('moca_artworks', data); return true; };
 
+export const getEvents = (): Event[] => getFromCache('moca_events', DEFAULT_EVENTS);
+export const saveEvents = (data: Event[]) => { saveToDB('moca_events', data); return true; };
+
 export const getCollectables = (): Collectable[] => getFromCache('moca_collectables', COLLECTABLES);
 export const saveCollectables = (data: Collectable[]) => { saveToDB('moca_collectables', data); return true; };
 
@@ -158,7 +194,8 @@ export const saveShopOrder = (order: ShopOrder) => {
     const orders = getShopOrders();
     saveToDB('moca_shop_orders', [order, ...orders]);
 };
-export const updateShopOrders = (orders: ShopOrder[]) => saveToDB('moca_shop_orders', orders);
+
+export const updateShopOrders = (orders: ShopOrder[]) => { saveToDB('moca_shop_orders', orders); return true; };
 
 export const getBookings = (): Booking[] => getFromCache('moca_bookings', []);
 export const saveBooking = (booking: Booking) => {
@@ -167,7 +204,7 @@ export const saveBooking = (booking: Booking) => {
 };
 
 export const getHomepageGallery = () => getFromCache('moca_homepage_gallery', DEFAULT_GALLERY);
-export const saveHomepageGallery = (data: any) => saveToDB('moca_homepage_gallery', data);
+export const saveHomepageGallery = (data: any) => { saveToDB('moca_homepage_gallery', data); return true; };
 export const resetHomepageGallery = () => { saveToDB('moca_homepage_gallery', DEFAULT_GALLERY); return DEFAULT_GALLERY; };
 
 export const getReviews = (itemId: string): Review[] => {
