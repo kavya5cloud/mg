@@ -68,7 +68,7 @@ const DEFAULT_PAGE_ASSETS: PageAssets = {
     ]
   },
   visit: { 
-    hero: "https://picsum.photos/id/20/400/300",
+    hero: "https://picsum.photos/id/445/1600/800",
     hours: "Tuesday — Sunday: 10:30 — 18:00",
     locationText: "Inside Veer Residency, Gandhinagar Mahudi, Gujarat",
     googleMapsLink: "https://www.google.com/maps/search/?api=1&query=23.506205,72.754318",
