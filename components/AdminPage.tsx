@@ -1,10 +1,11 @@
 
 import React, { useState, useEffect } from 'react';
-import { Lock, Search, RefreshCw, LogOut, Pen, Trash, Plus, ShoppingBag, Image as ImageIcon, Check, X, Package, Filter, Upload, Mail, Home, RotateCcw, UserPlus, Eye, EyeOff, IndianRupee, Trash2, Database, AlertTriangle, Link as LinkIcon, Info, ExternalLink, Zap, ShieldCheck, Ticket, Users, Tag, Box, HardDrive } from 'lucide-react';
+import { Lock, Search, RefreshCw, LogOut, Pen, Trash, Plus, ShoppingBag, Image as ImageIcon, Check, X, Package, Filter, Upload, Mail, Home, RotateCcw, UserPlus, Eye, EyeOff, IndianRupee, Trash2, Database, AlertTriangle, Link as LinkIcon, Info, ExternalLink, Zap, ShieldCheck, Ticket, Users, Tag, Box, HardDrive, Calendar, MapPin } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
 import { 
     getExhibitions, saveExhibitions, 
     getArtworks, saveArtworks, 
+    getEvents, saveEvents,
     getCollectables, saveCollectables, 
     getShopOrders, updateShopOrders, 
     getNewsletterEmails, 
@@ -14,9 +15,9 @@ import {
     getStaffMode, setStaffMode,
     getStorageUsage, clearAllAppData 
 } from '../services/data';
-import { Exhibition, Artwork, Collectable, ShopOrder, Booking, PageAssets, TeamMember } from '../types';
+import { Exhibition, Artwork, Collectable, ShopOrder, Booking, PageAssets, TeamMember, Event } from '../types';
 
-type Tab = 'bookings' | 'shop' | 'exhibitions' | 'collection' | 'homepage' | 'content' | 'newsletter' | 'settings';
+type Tab = 'bookings' | 'shop' | 'exhibitions' | 'whatson' | 'collection' | 'homepage' | 'content' | 'newsletter' | 'settings';
 
 const AdminPage: React.FC = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -31,6 +32,7 @@ const AdminPage: React.FC = () => {
   const [shopOrders, setShopOrders] = useState<ShopOrder[]>([]);
   const [exhibitions, setExhibitions] = useState<Exhibition[]>([]);
   const [artworks, setArtworks] = useState<Artwork[]>([]);
+  const [events, setEvents] = useState<Event[]>([]);
   const [collectables, setCollectables] = useState<Collectable[]>([]);
   const [newsletterEmails, setNewsletterEmails] = useState<string[]>([]);
   const [homepageGallery, setHomepageGallery] = useState<any[]>([]);
@@ -38,7 +40,7 @@ const AdminPage: React.FC = () => {
   
   // UI States
   const [isEditing, setIsEditing] = useState(false);
-  const [editType, setEditType] = useState<'exhibition' | 'artwork' | 'collectable' | 'gallery-image' | 'page-asset' | 'team-member' | null>(null);
+  const [editType, setEditType] = useState<'exhibition' | 'artwork' | 'event' | 'collectable' | 'gallery-image' | 'page-asset' | 'team-member' | null>(null);
   const [editItem, setEditItem] = useState<any>(null);
   const [activeTrackIdx, setActiveTrackIdx] = useState<number | null>(null);
   const [activeAssetKey, setActiveAssetKey] = useState<string | null>(null);
@@ -58,6 +60,7 @@ const AdminPage: React.FC = () => {
       setShopOrders(getShopOrders());
       setExhibitions(getExhibitions());
       setArtworks(getArtworks());
+      setEvents(getEvents());
       setCollectables(getCollectables());
       setNewsletterEmails(getNewsletterEmails());
       setHomepageGallery(getHomepageGallery());
@@ -93,6 +96,10 @@ const AdminPage: React.FC = () => {
           const newData = artworks.filter(a => a.id !== id);
           success = saveArtworks(newData);
           if (success) setArtworks(newData);
+      } else if (type === 'event') {
+          const newData = events.filter(ev => ev.id !== id);
+          success = saveEvents(newData);
+          if (success) setEvents(newData);
       } else if (type === 'collectable') {
           const newData = collectables.filter(c => c.id !== id);
           success = saveCollectables(newData);
@@ -161,6 +168,9 @@ const AdminPage: React.FC = () => {
           } else if (editType === 'artwork') {
               const updated = editItem.id ? artworks.map(art => art.id === id ? newItem : art) : [...artworks, newItem];
               success = saveArtworks(updated);
+          } else if (editType === 'event') {
+              const updated = editItem.id ? events.map(ev => ev.id === id ? newItem : ev) : [...events, newItem];
+              success = saveEvents(updated);
           } else if (editType === 'collectable') {
               const updated = editItem.id ? collectables.map(c => c.id === id ? newItem : c) : [...collectables, newItem];
               success = saveCollectables(updated);
@@ -254,7 +264,6 @@ const AdminPage: React.FC = () => {
     );
   }
 
-  // With IndexedDB, the "usage percent" is purely visual based on a high artificial cap (e.g. 500MB)
   const usagePercent = Math.min(100, (Number(storageMB) / 500) * 100);
 
   return (
@@ -277,9 +286,9 @@ const AdminPage: React.FC = () => {
 
        <main className="flex-grow max-w-[1600px] w-full mx-auto p-10">
            <div className="flex flex-wrap gap-4 mb-12 border-b-2 border-gray-100">
-               {['bookings', 'shop', 'exhibitions', 'collection', 'homepage', 'content', 'newsletter', 'settings'].map(t => (
+               {['bookings', 'shop', 'exhibitions', 'whatson', 'collection', 'homepage', 'content', 'newsletter', 'settings'].map(t => (
                    <button key={t} onClick={() => setActiveTab(t as Tab)} className={`px-4 py-6 text-xs font-black uppercase tracking-widest border-b-4 transition-all ${activeTab === t ? 'border-black text-black' : 'border-transparent text-gray-300 hover:text-black'}`}>
-                       {t}
+                       {t === 'whatson' ? "What's On" : t}
                    </button>
                ))}
            </div>
@@ -354,9 +363,10 @@ const AdminPage: React.FC = () => {
            )}
 
            {activeTab === 'content' && pageAssets && (
-               <div className="max-w-4xl space-y-12 animate-in fade-in slide-in-from-bottom-4">
+               <div className="max-w-5xl space-y-12 animate-in fade-in slide-in-from-bottom-4">
+                   {/* About Section */}
                    <div className="bg-gray-50 p-10 rounded-[3rem] border-2 border-gray-100">
-                       <h3 className="text-2xl font-black mb-10 border-b pb-6 uppercase tracking-widest">General Content</h3>
+                       <h3 className="text-2xl font-black mb-10 border-b pb-6 uppercase tracking-widest flex items-center gap-4"><Info className="w-6 h-6" /> About Page Content</h3>
                        <div className="grid md:grid-cols-2 gap-10">
                            <div className="space-y-6">
                                <div><label className="text-[10px] font-black text-gray-400 uppercase mb-2 block">Hero Intro Title</label><input className="w-full border-2 p-4 rounded-2xl font-bold" value={pageAssets.about.introTitle} onChange={e => { const u = {...pageAssets}; u.about.introTitle = e.target.value; setPageAssets(u); savePageAssets(u); }} /></div>
@@ -364,7 +374,34 @@ const AdminPage: React.FC = () => {
                            </div>
                            <div className="space-y-8">
                                 <div className="p-6 bg-white rounded-[2rem] border-2 border-gray-100"><h4 className="text-[10px] font-black uppercase mb-4">About Hero Image</h4><img src={pageAssets.about.hero} className="w-full h-32 object-cover rounded-xl mb-4" /><button onClick={() => openEditor('page-asset', {imageUrl: pageAssets.about.hero}, 'about.hero')} className="w-full bg-black text-white py-2 rounded-xl text-[10px] font-black uppercase">Edit Photo</button></div>
-                                <div className="p-6 bg-white rounded-[2rem] border-2 border-gray-100"><h4 className="text-[10px] font-black uppercase mb-4">Atrium Gallery Image</h4><img src={pageAssets.about.atrium} className="w-full h-32 object-cover rounded-xl mb-4" /><button onClick={() => openEditor('page-asset', {imageUrl: pageAssets.about.atrium}, 'about.atrium')} className="w-full bg-black text-white py-2 rounded-xl text-[10px] font-black uppercase">Edit Photo</button></div>
+                           </div>
+                       </div>
+                   </div>
+
+                   {/* Visit Section */}
+                   <div className="bg-gray-50 p-10 rounded-[3rem] border-2 border-gray-100">
+                       <h3 className="text-2xl font-black mb-10 border-b pb-6 uppercase tracking-widest flex items-center gap-4"><MapPin className="w-6 h-6" /> Visit Page Content</h3>
+                       <div className="grid md:grid-cols-2 gap-10">
+                           <div className="space-y-6">
+                               <div>
+                                   <label className="text-[10px] font-black text-gray-400 uppercase mb-2 block">Opening Hours String</label>
+                                   <input className="w-full border-2 p-4 rounded-2xl font-bold" value={pageAssets.visit.hours} onChange={e => { const u = {...pageAssets}; u.visit.hours = e.target.value; setPageAssets(u); savePageAssets(u); }} />
+                               </div>
+                               <div>
+                                   <label className="text-[10px] font-black text-gray-400 uppercase mb-2 block">Admission & Tickets Info</label>
+                                   <textarea rows={4} className="w-full border-2 p-4 rounded-2xl text-sm font-bold" value={pageAssets.visit.admissionInfo} onChange={e => { const u = {...pageAssets}; u.visit.admissionInfo = e.target.value; setPageAssets(u); savePageAssets(u); }} />
+                               </div>
+                               <div>
+                                   <label className="text-[10px] font-black text-gray-400 uppercase mb-2 block">Location Address Text</label>
+                                   <textarea rows={3} className="w-full border-2 p-4 rounded-2xl text-sm font-bold" value={pageAssets.visit.locationText} onChange={e => { const u = {...pageAssets}; u.visit.locationText = e.target.value; setPageAssets(u); savePageAssets(u); }} />
+                               </div>
+                               <div>
+                                   <label className="text-[10px] font-black text-gray-400 uppercase mb-2 block">Google Maps Search Link</label>
+                                   <input className="w-full border-2 p-4 rounded-2xl text-xs font-mono" value={pageAssets.visit.googleMapsLink} onChange={e => { const u = {...pageAssets}; u.visit.googleMapsLink = e.target.value; setPageAssets(u); savePageAssets(u); }} />
+                               </div>
+                           </div>
+                           <div className="space-y-8">
+                               <div className="p-6 bg-white rounded-[2rem] border-2 border-gray-100"><h4 className="text-[10px] font-black uppercase mb-4">Visit Page Hero</h4><img src={pageAssets.visit.hero} className="w-full h-32 object-cover rounded-xl mb-4" /><button onClick={() => openEditor('page-asset', {imageUrl: pageAssets.visit.hero}, 'visit.hero')} className="w-full bg-black text-white py-2 rounded-xl text-[10px] font-black uppercase">Edit Photo</button></div>
                            </div>
                        </div>
                    </div>
@@ -372,7 +409,7 @@ const AdminPage: React.FC = () => {
                    {/* TEAM MANAGEMENT SECTION */}
                    <div className="bg-gray-50 p-10 rounded-[3rem] border-2 border-gray-100">
                         <div className="flex justify-between items-center mb-10 border-b pb-6">
-                            <h3 className="text-2xl font-black uppercase tracking-widest">Museum Team</h3>
+                            <h3 className="text-2xl font-black uppercase tracking-widest flex items-center gap-4"><Users className="w-6 h-6" /> Museum Team</h3>
                             <button onClick={() => openEditor('team-member')} className="bg-black text-white px-6 py-2 rounded-2xl text-[10px] font-black uppercase flex items-center gap-2">
                                 <UserPlus className="w-4 h-4" /> Add Member
                             </button>
@@ -407,6 +444,24 @@ const AdminPage: React.FC = () => {
                         <div key={ex.id} className="bg-white border-2 border-gray-50 rounded-[3rem] overflow-hidden flex flex-col group hover:shadow-2xl transition-all">
                             <div className="h-64 relative overflow-hidden"><img src={ex.imageUrl} className="w-full h-full object-cover" /><div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-all flex items-center justify-center gap-4"><button onClick={() => openEditor('exhibition', ex)} className="p-4 bg-white rounded-full hover:scale-110 transition-transform"><Pen className="w-6 h-6" /></button><button onClick={() => handleDelete(ex.id, 'exhibition')} className="p-4 bg-white text-red-600 rounded-full hover:scale-110 transition-transform"><Trash className="w-6 h-6" /></button></div></div>
                             <div className="p-10"><h3 className="font-black text-2xl tracking-tighter mb-1">{ex.title}</h3><p className="text-[10px] text-gray-400 font-black uppercase tracking-widest">{ex.category}</p></div>
+                        </div>
+                    ))}
+                </div>
+           )}
+
+           {activeTab === 'whatson' && (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10 animate-in fade-in">
+                    <button onClick={() => openEditor('event')} className="bg-gray-50 border-4 border-dashed border-gray-100 rounded-[3rem] h-[400px] flex flex-col items-center justify-center text-gray-300 hover:border-black hover:text-black transition-all group">
+                        <Plus className="w-16 h-16 mb-4 group-hover:scale-110 transition-transform" /> <span className="font-black text-xs uppercase tracking-widest">New Event</span>
+                    </button>
+                    {events.map(ev => (
+                        <div key={ev.id} className="bg-white border-2 border-gray-50 rounded-[3rem] overflow-hidden flex flex-col group hover:shadow-2xl transition-all">
+                            <div className="h-64 relative overflow-hidden"><img src={ev.imageUrl} className="w-full h-full object-cover" /><div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-all flex items-center justify-center gap-4"><button onClick={() => openEditor('event', ev)} className="p-4 bg-white rounded-full hover:scale-110 transition-transform"><Pen className="w-6 h-6" /></button><button onClick={() => handleDelete(ev.id, 'event')} className="p-4 bg-white text-red-600 rounded-full hover:scale-110 transition-transform"><Trash className="w-6 h-6" /></button></div></div>
+                            <div className="p-10">
+                                <span className="text-[8px] font-black uppercase tracking-widest px-2 py-0.5 bg-green-100 text-green-800 rounded mb-2 inline-block">{ev.type}</span>
+                                <h3 className="font-black text-xl tracking-tighter mb-1 line-clamp-1">{ev.title}</h3>
+                                <p className="text-[10px] text-gray-400 font-bold">{ev.date}</p>
+                            </div>
                         </div>
                     ))}
                 </div>
@@ -499,12 +554,19 @@ const AdminPage: React.FC = () => {
                                 </div>
                             </div>
                         )}
-                        {['exhibition', 'artwork'].includes(editType!) && (
+                        {['exhibition', 'artwork', 'event'].includes(editType!) && (
                             <div className="space-y-6">
-                                <input required className="w-full border-2 border-gray-100 p-5 rounded-2xl font-bold outline-none focus:border-black" placeholder="Main Title" value={editItem.title || ''} onChange={e => setEditItem((prev:any)=>({...prev, title: e.target.value}))} />
-                                <div className="grid grid-cols-2 gap-4">
-                                    <input className="w-full border-2 border-gray-100 p-5 rounded-2xl font-bold outline-none focus:border-black" placeholder="Category" value={editItem.category || ''} onChange={e => setEditItem((prev:any)=>({...prev, category: e.target.value}))} />
+                                <div className="flex items-center gap-4 bg-gray-50 p-4 rounded-2xl border border-gray-100 mb-4">
+                                    <div className="p-3 bg-black text-white rounded-full"><Calendar className="w-5 h-5" /></div>
+                                    <p className="text-xs font-bold uppercase tracking-widest">Record Entry: {editType}</p>
                                 </div>
+                                <input required className="w-full border-2 border-gray-100 p-5 rounded-2xl font-bold outline-none focus:border-black" placeholder="Title / Name" value={editItem.title || ''} onChange={e => setEditItem((prev:any)=>({...prev, title: e.target.value}))} />
+                                <div className="grid grid-cols-2 gap-4">
+                                    <input className="w-full border-2 border-gray-100 p-5 rounded-2xl font-bold outline-none focus:border-black" placeholder="Type / Category" value={editItem.type || editItem.category || ''} onChange={e => setEditItem((prev:any)=>({...prev, type: e.target.value, category: e.target.value}))} />
+                                    {editType === 'event' && <input required className="w-full border-2 border-gray-100 p-5 rounded-2xl font-bold outline-none focus:border-black" placeholder="Date & Time" value={editItem.date || ''} onChange={e => setEditItem((prev:any)=>({...prev, date: e.target.value}))} />}
+                                    {editType === 'exhibition' && <input required className="w-full border-2 border-gray-100 p-5 rounded-2xl font-bold outline-none focus:border-black" placeholder="Date Range" value={editItem.dateRange || ''} onChange={e => setEditItem((prev:any)=>({...prev, dateRange: e.target.value}))} />}
+                                </div>
+                                {editType === 'event' && <input required className="w-full border-2 border-gray-100 p-5 rounded-2xl font-bold outline-none focus:border-black" placeholder="Location Room" value={editItem.location || ''} onChange={e => setEditItem((prev:any)=>({...prev, location: e.target.value}))} />}
                             </div>
                         )}
                         {editType === 'team-member' && (
