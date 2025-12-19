@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { Lock, Search, RefreshCw, LogOut, Pen, Trash, Plus, ShoppingBag, Image as ImageIcon, Check, X, Package, Filter, Upload, Mail, Home, RotateCcw, UserPlus, Eye, EyeOff, IndianRupee, Trash2, Database, AlertTriangle, Link as LinkIcon, Info, ExternalLink, Zap, ShieldCheck, Ticket, Users, Tag, Box, HardDrive, Calendar, MapPin, Car, Accessibility, MessageSquare } from 'lucide-react';
+import { Lock, Search, RefreshCw, LogOut, Pen, Trash, Plus, ShoppingBag, Image as ImageIcon, Check, X, Package, Filter, Upload, Mail, Home, RotateCcw, UserPlus, Eye, EyeOff, IndianRupee, Trash2, Database, AlertTriangle, Link as LinkIcon, Info, ExternalLink, Zap, ShieldCheck, Ticket, Users, Tag, Box, HardDrive, Calendar, MapPin, Car, Accessibility, MessageSquare, Save } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
 import { 
     getExhibitions, saveExhibitions, 
@@ -46,6 +46,7 @@ const AdminPage: React.FC = () => {
   const [activeAssetKey, setActiveAssetKey] = useState<string | null>(null);
   const [previewError, setPreviewError] = useState(false);
   const [isCompressing, setIsCompressing] = useState(false);
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -85,35 +86,35 @@ const AdminPage: React.FC = () => {
       setStaffMode(newState);
   };
 
-  const handleDelete = (id: string, type: string) => {
+  const handleDelete = async (id: string, type: string) => {
       if (!window.confirm('Confirm Deletion?')) return;
-      let success = false;
+      
       if (type === 'exhibition') {
           const newData = exhibitions.filter(e => e.id !== id);
-          success = saveExhibitions(newData);
-          if (success) setExhibitions(newData);
+          await saveExhibitions(newData);
+          setExhibitions(newData);
       } else if (type === 'artwork') {
           const newData = artworks.filter(a => a.id !== id);
-          success = saveArtworks(newData);
-          if (success) setArtworks(newData);
+          await saveArtworks(newData);
+          setArtworks(newData);
       } else if (type === 'event') {
           const newData = events.filter(ev => ev.id !== id);
-          success = saveEvents(newData);
-          if (success) setEvents(newData);
+          await saveEvents(newData);
+          setEvents(newData);
       } else if (type === 'collectable') {
           const newData = collectables.filter(c => c.id !== id);
-          success = saveCollectables(newData);
-          if (success) setCollectables(newData);
+          await saveCollectables(newData);
+          setCollectables(newData);
       } else if (type === 'gallery-image' && activeTrackIdx !== null) {
           const updatedGallery = [...homepageGallery];
           updatedGallery[activeTrackIdx].images = updatedGallery[activeTrackIdx].images.filter((img: string) => img !== id);
-          success = saveHomepageGallery(updatedGallery);
-          if (success) setHomepageGallery(updatedGallery);
+          await saveHomepageGallery(updatedGallery);
+          setHomepageGallery(updatedGallery);
       } else if (type === 'team-member' && pageAssets) {
           const updatedAssets = { ...pageAssets };
           updatedAssets.about.team = updatedAssets.about.team.filter(m => m.id !== id);
-          success = savePageAssets(updatedAssets);
-          if (success) setPageAssets(updatedAssets);
+          await savePageAssets(updatedAssets);
+          setPageAssets(updatedAssets);
       }
       setStorageMB(getStorageUsage());
   };
@@ -127,9 +128,8 @@ const AdminPage: React.FC = () => {
       if (type === 'page-asset' || type === 'team-member') setActiveAssetKey(meta);
   };
 
-  const handleSaveItem = (e: React.FormEvent) => {
+  const handleSaveItem = async (e: React.FormEvent) => {
       e.preventDefault();
-      let success = false;
       
       if (editType === 'gallery-image' && activeTrackIdx !== null) {
           const updatedGallery = [...homepageGallery];
@@ -138,7 +138,7 @@ const AdminPage: React.FC = () => {
           } else {
               updatedGallery[activeTrackIdx].images = [...updatedGallery[activeTrackIdx].images, editItem.imageUrl];
           }
-          success = saveHomepageGallery(updatedGallery);
+          await saveHomepageGallery(updatedGallery);
       } else if (editType === 'team-member' && pageAssets) {
           const updatedAssets = { ...pageAssets };
           const id = editItem.id || Date.now().toString();
@@ -153,34 +153,42 @@ const AdminPage: React.FC = () => {
           } else {
               updatedAssets.about.team = [...updatedAssets.about.team, teamMemberData];
           }
-          success = savePageAssets(updatedAssets);
+          await savePageAssets(updatedAssets);
       } else if (editType === 'page-asset' && activeAssetKey && pageAssets) {
           const [page, key] = activeAssetKey.split('.');
           const updatedAssets = { ...pageAssets };
           (updatedAssets as any)[page][key] = editItem.imageUrl || editItem.text;
-          success = savePageAssets(updatedAssets);
+          await savePageAssets(updatedAssets);
       } else {
           const id = editItem.id || Date.now().toString();
           const newItem = { ...editItem, id };
           if (editType === 'exhibition') {
               const updated = editItem.id ? exhibitions.map(ex => ex.id === id ? newItem : ex) : [...exhibitions, newItem];
-              success = saveExhibitions(updated);
+              await saveExhibitions(updated);
           } else if (editType === 'artwork') {
               const updated = editItem.id ? artworks.map(art => art.id === id ? newItem : art) : [...artworks, newItem];
-              success = saveArtworks(updated);
+              await saveArtworks(updated);
           } else if (editType === 'event') {
               const updated = editItem.id ? events.map(ev => ev.id === id ? newItem : ev) : [...events, newItem];
-              success = saveEvents(updated);
+              await saveEvents(updated);
           } else if (editType === 'collectable') {
               const updated = editItem.id ? collectables.map(c => c.id === id ? newItem : c) : [...collectables, newItem];
-              success = saveCollectables(updated);
+              await saveCollectables(updated);
           }
       }
 
-      if (success) {
-        setIsEditing(false);
-        loadData();
-      }
+      setIsEditing(false);
+      loadData();
+  };
+
+  const persistPageAssets = async () => {
+    if (!pageAssets) return;
+    setSaveStatus('saving');
+    await savePageAssets(pageAssets);
+    setTimeout(() => {
+        setSaveStatus('saved');
+        setTimeout(() => setSaveStatus('idle'), 2000);
+    }, 500);
   };
 
   const handleImageUpload = (file: File) => {
@@ -363,28 +371,38 @@ const AdminPage: React.FC = () => {
            {activeTab === 'visit' && pageAssets && (
                <div className="max-w-5xl space-y-12 animate-in fade-in slide-in-from-bottom-4">
                    <div className="bg-gray-50 p-10 rounded-[3rem] border-2 border-gray-100">
-                       <h3 className="text-2xl font-black mb-10 border-b pb-6 uppercase tracking-widest flex items-center gap-4"><MapPin className="w-6 h-6" /> Visit Page Content</h3>
+                       <div className="flex justify-between items-center mb-10 border-b pb-6">
+                           <h3 className="text-2xl font-black uppercase tracking-widest flex items-center gap-4"><MapPin className="w-6 h-6" /> Visit Page Content</h3>
+                           <button 
+                                onClick={persistPageAssets}
+                                disabled={saveStatus === 'saving'}
+                                className={`px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 ${saveStatus === 'saved' ? 'bg-green-500 text-white' : 'bg-black text-white hover:bg-gray-800'}`}
+                            >
+                               {saveStatus === 'saving' ? <RefreshCw className="w-3 h-3 animate-spin" /> : saveStatus === 'saved' ? <Check className="w-3 h-3" /> : <Save className="w-3 h-3" />}
+                               {saveStatus === 'saving' ? 'Committing...' : saveStatus === 'saved' ? 'Database Updated' : 'Save All Changes'}
+                           </button>
+                       </div>
                        <div className="grid md:grid-cols-2 gap-10">
                            <div className="space-y-6">
                                <div>
                                    <label className="text-[10px] font-black text-gray-400 uppercase mb-2 block">Opening Hours String</label>
-                                   <input className="w-full border-2 p-4 rounded-2xl font-bold" value={pageAssets.visit.hours} onChange={e => { const u = {...pageAssets}; u.visit.hours = e.target.value; setPageAssets(u); savePageAssets(u); }} />
+                                   <input className="w-full border-2 p-4 rounded-2xl font-bold" value={pageAssets.visit.hours} onChange={e => { const u = {...pageAssets}; u.visit.hours = e.target.value; setPageAssets(u); }} />
                                </div>
                                <div>
                                    <label className="text-[10px] font-black text-gray-400 uppercase mb-2 block">Admission & Tickets Info</label>
-                                   <textarea rows={3} className="w-full border-2 p-4 rounded-2xl text-sm font-bold" value={pageAssets.visit.admissionInfo} onChange={e => { const u = {...pageAssets}; u.visit.admissionInfo = e.target.value; setPageAssets(u); savePageAssets(u); }} />
+                                   <textarea rows={3} className="w-full border-2 p-4 rounded-2xl text-sm font-bold" value={pageAssets.visit.admissionInfo} onChange={e => { const u = {...pageAssets}; u.visit.admissionInfo = e.target.value; setPageAssets(u); }} />
                                </div>
                                <div>
                                    <label className="text-[10px] font-black text-gray-400 uppercase mb-2 block flex items-center gap-2"><Car className="w-3 h-3"/> Parking Info</label>
-                                   <textarea rows={3} className="w-full border-2 p-4 rounded-2xl text-sm font-bold" value={pageAssets.visit.parkingInfo} onChange={e => { const u = {...pageAssets}; u.visit.parkingInfo = e.target.value; setPageAssets(u); savePageAssets(u); }} />
+                                   <textarea rows={3} className="w-full border-2 p-4 rounded-2xl text-sm font-bold" value={pageAssets.visit.parkingInfo} onChange={e => { const u = {...pageAssets}; u.visit.parkingInfo = e.target.value; setPageAssets(u); }} />
                                </div>
                                <div>
                                    <label className="text-[10px] font-black text-gray-400 uppercase mb-2 block">Location Address Text</label>
-                                   <textarea rows={2} className="w-full border-2 p-4 rounded-2xl text-sm font-bold" value={pageAssets.visit.locationText} onChange={e => { const u = {...pageAssets}; u.visit.locationText = e.target.value; setPageAssets(u); savePageAssets(u); }} />
+                                   <textarea rows={2} className="w-full border-2 p-4 rounded-2xl text-sm font-bold" value={pageAssets.visit.locationText} onChange={e => { const u = {...pageAssets}; u.visit.locationText = e.target.value; setPageAssets(u); }} />
                                </div>
                                <div>
                                    <label className="text-[10px] font-black text-gray-400 uppercase mb-2 block">Google Maps Search Link</label>
-                                   <input className="w-full border-2 p-4 rounded-2xl text-xs font-mono" value={pageAssets.visit.googleMapsLink} onChange={e => { const u = {...pageAssets}; u.visit.googleMapsLink = e.target.value; setPageAssets(u); savePageAssets(u); }} />
+                                   <input className="w-full border-2 p-4 rounded-2xl text-xs font-mono" value={pageAssets.visit.googleMapsLink} onChange={e => { const u = {...pageAssets}; u.visit.googleMapsLink = e.target.value; setPageAssets(u); }} />
                                </div>
                            </div>
                            <div className="space-y-8">
@@ -424,11 +442,21 @@ const AdminPage: React.FC = () => {
                <div className="max-w-5xl space-y-12 animate-in fade-in slide-in-from-bottom-4">
                    {/* About Section */}
                    <div className="bg-gray-50 p-10 rounded-[3rem] border-2 border-gray-100">
-                       <h3 className="text-2xl font-black mb-10 border-b pb-6 uppercase tracking-widest flex items-center gap-4"><Info className="w-6 h-6" /> About Page Content</h3>
+                       <div className="flex justify-between items-center mb-10 border-b pb-6">
+                           <h3 className="text-2xl font-black uppercase tracking-widest flex items-center gap-4"><Info className="w-6 h-6" /> About Page Content</h3>
+                           <button 
+                                onClick={persistPageAssets}
+                                disabled={saveStatus === 'saving'}
+                                className={`px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 ${saveStatus === 'saved' ? 'bg-green-500 text-white' : 'bg-black text-white hover:bg-gray-800'}`}
+                            >
+                               {saveStatus === 'saving' ? <RefreshCw className="w-3 h-3 animate-spin" /> : saveStatus === 'saved' ? <Check className="w-3 h-3" /> : <Save className="w-3 h-3" />}
+                               {saveStatus === 'saving' ? 'Committing...' : saveStatus === 'saved' ? 'Database Updated' : 'Save All Changes'}
+                           </button>
+                       </div>
                        <div className="grid md:grid-cols-2 gap-10">
                            <div className="space-y-6">
-                               <div><label className="text-[10px] font-black text-gray-400 uppercase mb-2 block">Hero Intro Title</label><input className="w-full border-2 p-4 rounded-2xl font-bold" value={pageAssets.about.introTitle} onChange={e => { const u = {...pageAssets}; u.about.introTitle = e.target.value; setPageAssets(u); savePageAssets(u); }} /></div>
-                               <div><label className="text-[10px] font-black text-gray-400 uppercase mb-2 block">Description Para</label><textarea rows={6} className="w-full border-2 p-4 rounded-2xl text-sm" value={pageAssets.about.introPara1} onChange={e => { const u = {...pageAssets}; u.about.introPara1 = e.target.value; setPageAssets(u); savePageAssets(u); }} /></div>
+                               <div><label className="text-[10px] font-black text-gray-400 uppercase mb-2 block">Hero Intro Title</label><input className="w-full border-2 p-4 rounded-2xl font-bold" value={pageAssets.about.introTitle} onChange={e => { const u = {...pageAssets}; u.about.introTitle = e.target.value; setPageAssets(u); }} /></div>
+                               <div><label className="text-[10px] font-black text-gray-400 uppercase mb-2 block">Description Para</label><textarea rows={6} className="w-full border-2 p-4 rounded-2xl text-sm" value={pageAssets.about.introPara1} onChange={e => { const u = {...pageAssets}; u.about.introPara1 = e.target.value; setPageAssets(u); }} /></div>
                            </div>
                            <div className="space-y-8">
                                 <div className="p-6 bg-white rounded-[2rem] border-2 border-gray-100">
