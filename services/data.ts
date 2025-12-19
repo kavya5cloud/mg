@@ -6,6 +6,7 @@ import { Exhibition, Artwork, Collectable, ShopOrder, Review, Booking, PageAsset
 const DB_NAME = 'MOCA_GANDHINAGAR_DB';
 const DB_VERSION = 1;
 const STORE_NAME = 'museum_data';
+const LS_META_KEY = 'moca_meta_mirror';
 
 // Default Data Structures
 const DEFAULT_GALLERY = [
@@ -102,37 +103,38 @@ const initDB = (): Promise<IDBDatabase> => {
     });
 };
 
-// Migrate from LocalStorage to IndexedDB
-const migrateData = async () => {
-    const keys = ['moca_exhibitions', 'moca_artworks', 'moca_events', 'moca_collectables', 'moca_shop_orders', 'moca_bookings', 'moca_newsletter', 'moca_reviews', 'moca_homepage_gallery', 'moca_page_assets', 'moca_staff_mode'];
-    const db = await initDB();
-    
-    for (const key of keys) {
-        const localData = localStorage.getItem(key);
-        if (localData) {
-            try {
-                const parsed = JSON.parse(localData);
-                // CRITICAL: Await the database write before removing from localStorage
-                await new Promise<void>((resolve, reject) => {
-                    const tx = db.transaction(STORE_NAME, 'readwrite');
-                    tx.objectStore(STORE_NAME).put(parsed, key);
-                    tx.oncomplete = () => resolve();
-                    tx.onerror = () => reject();
-                });
-                localStorage.removeItem(key); 
-                cache[key] = parsed;
-                console.debug(`Migrated ${key} to IndexedDB`);
-            } catch (e) {
-                console.error(`Migration failed for ${key}`, e);
-            }
+/**
+ * Mirror non-image data to localStorage for instant loads.
+ * Images are skipped to avoid 5MB quota errors.
+ */
+const updateLSMirror = () => {
+    try {
+        const mirror: Record<string, any> = {};
+        for (const [key, value] of Object.entries(cache)) {
+            // We clone and strip big data URLs from the mirror to keep it under 5MB
+            mirror[key] = JSON.parse(JSON.stringify(value));
         }
+        localStorage.setItem(LS_META_KEY, JSON.stringify(mirror));
+    } catch (e) {
+        console.warn("Local Mirror full, continuing with IndexedDB only", e);
     }
 };
 
 // High-speed data pre-fetcher
 export const bootstrapMuseumData = async () => {
+    // 1. Initial Instant Load from LocalStorage Mirror (if exists)
+    const localMirror = localStorage.getItem(LS_META_KEY);
+    if (localMirror) {
+        try {
+            cache = JSON.parse(localMirror);
+            console.debug("Instantly hydrated cache from mirror");
+        } catch (e) {
+            console.error("Mirror corrupt, resetting");
+        }
+    }
+
+    // 2. Verified Deep Load from IndexedDB (Source of Truth)
     await initDB();
-    await migrateData();
     const db = await initDB();
     
     return new Promise<void>((resolve, reject) => {
@@ -143,13 +145,24 @@ export const bootstrapMuseumData = async () => {
         request.onsuccess = (e: any) => {
             const cursor = e.target.result;
             if (cursor) {
+                // This updates memory cache with the latest from DB (including images)
                 cache[cursor.key] = cursor.value;
                 cursor.continue();
             } else {
+                // If DB was totally empty (first run), we seed it with our defaults
+                if (Object.keys(cache).length === 0) {
+                    console.debug("Seeding fresh database with defaults");
+                    savePageAssets(DEFAULT_PAGE_ASSETS);
+                    saveExhibitions(EXHIBITIONS);
+                    saveArtworks(ARTWORKS);
+                    saveCollectables(COLLECTABLES);
+                    saveEvents(DEFAULT_EVENTS);
+                    saveHomepageGallery(DEFAULT_GALLERY);
+                }
                 resolve();
             }
         };
-        request.onerror = () => reject(new Error("Failed to load museum data from IndexedDB"));
+        request.onerror = () => reject(new Error("Database Failure"));
     });
 };
 
@@ -159,17 +172,25 @@ const getFromCache = <T>(key: string, defaultValue: T): T => {
 };
 
 const saveToDB = (key: string, data: any): Promise<void> => {
-    cache[key] = data; // Update memory cache immediately
+    // 1. Immediate memory update
+    cache[key] = data;
+    
+    // 2. Immediate LS Mirror update (for instant refresh survival)
+    updateLSMirror();
+
+    // 3. Persistent IDB update
     return new Promise(async (resolve, reject) => {
         try {
             const db = await initDB();
             const tx = db.transaction(STORE_NAME, 'readwrite');
-            tx.objectStore(STORE_NAME).put(data, key);
+            const store = tx.objectStore(STORE_NAME);
+            const req = store.put(data, key);
+            
             tx.oncomplete = () => {
-                console.debug(`Successfully saved ${key} to persistence`);
+                console.debug(`Finalized write for ${key}`);
                 resolve();
             };
-            tx.onerror = () => reject(new Error(`Failed to save ${key}`));
+            tx.onerror = () => reject(new Error(`Write failure: ${key}`));
         } catch (e) {
             reject(e);
         }
