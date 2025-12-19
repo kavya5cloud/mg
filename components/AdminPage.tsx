@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { Lock, Search, RefreshCw, LogOut, TrendingUp, Users, Calendar, Pen, Trash, Plus, ShoppingBag, Image as ImageIcon, Check, X, Package, Filter, Upload, Mail, BarChart3, PieChart, Home, RotateCcw, Layout, UserPlus, Eye, EyeOff, Tag, IndianRupee, Trash2, Database, AlertTriangle, Link as LinkIcon, Info } from 'lucide-react';
+import { Lock, Search, RefreshCw, LogOut, TrendingUp, Users, Calendar, Pen, Trash, Plus, ShoppingBag, Image as ImageIcon, Check, X, Package, Filter, Upload, Mail, BarChart3, PieChart, Home, RotateCcw, Layout, UserPlus, Eye, EyeOff, Tag, IndianRupee, Trash2, Database, AlertTriangle, Link as LinkIcon, Info, ExternalLink, Zap } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
 import { getExhibitions, saveExhibitions, getArtworks, saveArtworks, getCollectables, saveCollectables, getShopOrders, updateShopOrders, getNewsletterEmails, getBookings, getHomepageGallery, saveHomepageGallery, resetHomepageGallery, getPageAssets, getStaffMode, setStaffMode, savePageAssets, getStorageUsage, clearAllAppData } from '../services/data';
 import { Exhibition, Artwork, Collectable, ShopOrder, Booking, PageAssets, TeamMember } from '../types';
@@ -25,19 +25,10 @@ const AdminPage: React.FC = () => {
   const [homepageGallery, setHomepageGallery] = useState<any[]>([]);
   const [pageAssets, setPageAssets] = useState<PageAssets | null>(null);
   
-  // Dashboard Stats
-  const [stats, setStats] = useState({ revenue: 0, visitors: 0, bookingCount: 0, salesRevenue: 0, orderCount: 0 });
-
-  // Shop Filters
-  const [shopSearch, setShopSearch] = useState('');
-  const [shopCategoryFilter, setShopCategoryFilter] = useState('All');
-
-  // Edit/Add State
-  const [isEditing, setIsEditing] = useState(false);
-  const [editType, setEditType] = useState<'exhibition' | 'artwork' | 'collectable' | 'gallery-image' | 'page-asset' | 'team-member' | null>(null);
-  const [editItem, setEditItem] = useState<any>(null);
-  const [activeTrackIdx, setActiveTrackIdx] = useState<number | null>(null);
-  const [activeAssetKey, setActiveAssetKey] = useState<string | null>(null);
+  // UI States
+  const [previewError, setPreviewError] = useState(false);
+  const [isPreviewLoading, setIsPreviewLoading] = useState(false);
+  const [driveMode, setDriveMode] = useState<'thumbnail' | 'direct'>('thumbnail');
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -70,20 +61,6 @@ const AdminPage: React.FC = () => {
       setHomepageGallery(getHomepageGallery());
       setPageAssets(getPageAssets());
       setStorageMB(getStorageUsage());
-
-      const loadedBookings = getBookings();
-      const loadedOrders = getShopOrders();
-      const ticketRevenue = loadedBookings.reduce((acc, b) => acc + b.totalAmount, 0);
-      const salesRevenue = loadedOrders.reduce((acc, o) => acc + o.totalAmount, 0);
-      const visitors = loadedBookings.reduce((acc, b) => acc + b.tickets.adult + b.tickets.student + b.tickets.child, 0);
-
-      setStats({
-          revenue: ticketRevenue,
-          salesRevenue: salesRevenue,
-          visitors,
-          bookingCount: loadedBookings.length,
-          orderCount: loadedOrders.length
-      });
   };
 
   const toggleStaffMode = () => {
@@ -92,13 +69,12 @@ const AdminPage: React.FC = () => {
       setStaffMode(newState);
   };
 
-  const filteredCollectables = useMemo(() => {
-      return collectables.filter(item => {
-          const matchesSearch = item.name.toLowerCase().includes(shopSearch.toLowerCase());
-          const matchesCategory = shopCategoryFilter === 'All' || item.category === shopCategoryFilter;
-          return matchesSearch && matchesCategory;
-      });
-  }, [collectables, shopSearch, shopCategoryFilter]);
+  // Edit/Add State
+  const [isEditing, setIsEditing] = useState(false);
+  const [editType, setEditType] = useState<'exhibition' | 'artwork' | 'collectable' | 'gallery-image' | 'page-asset' | 'team-member' | null>(null);
+  const [editItem, setEditItem] = useState<any>(null);
+  const [activeTrackIdx, setActiveTrackIdx] = useState<number | null>(null);
+  const [activeAssetKey, setActiveAssetKey] = useState<string | null>(null);
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
@@ -143,7 +119,9 @@ const AdminPage: React.FC = () => {
   const openEditor = (type: 'exhibition' | 'artwork' | 'collectable' | 'gallery-image' | 'page-asset' | 'team-member', item?: any, meta?: any) => {
       setEditType(type);
       setEditItem(item ? { ...item } : { inStock: true }); 
+      setPreviewError(false);
       setIsEditing(true);
+      setDriveMode('thumbnail');
       if (type === 'gallery-image') setActiveTrackIdx(meta);
       if (type === 'page-asset' || type === 'team-member') setActiveAssetKey(meta);
   };
@@ -215,52 +193,70 @@ const AdminPage: React.FC = () => {
       const reader = new FileReader();
       reader.onloadend = () => {
           setEditItem((prev: any) => ({ ...prev, imageUrl: reader.result as string }));
+          setPreviewError(false);
       };
       reader.readAsDataURL(file);
   };
 
   /**
    * Helper to convert Google Drive Sharing links to Direct Image URLs
+   * Handles more cases and specific share_link formats.
    */
-  const transformImageUrl = (url: string) => {
+  const transformImageUrl = (url: string, mode: 'thumbnail' | 'direct' = 'thumbnail') => {
     if (!url) return '';
+    const cleanUrl = url.trim();
     
-    // Regular Share Link
-    const driveMatch = url.match(/drive\.google\.com\/(?:file\/d\/|open\?id=)([a-zA-Z0-9_-]+)/);
+    // Extract ID from any Google Drive URL format
+    const driveMatch = cleanUrl.match(/(?:drive\.google\.com\/(?:file\/d\/|open\?id=|uc\?id=|uc\?export=view&id=)|https?:\/\/[\w\d.-]+\.google\.com\/.*?id=)([a-zA-Z0-9_-]{28,})/);
+    
     if (driveMatch && driveMatch[1]) {
-        return `https://drive.google.com/uc?export=view&id=${driveMatch[1]}`;
+        const id = driveMatch[1];
+        // thumbnail?id is the most reliable way to display Drive images in browsers
+        if (mode === 'thumbnail') {
+            return `https://drive.google.com/thumbnail?id=${id}&sz=w1200`;
+        } else {
+            return `https://drive.google.com/uc?id=${id}`;
+        }
     }
     
-    // Google Photos / Google User Content
-    if (url.includes('googleusercontent.com')) {
-        return url;
+    // Dropbox
+    if (cleanUrl.includes('dropbox.com')) {
+        return cleanUrl.replace('www.dropbox.com', 'dl.dropboxusercontent.com').replace('?dl=0', '').replace('?dl=1', '');
     }
 
-    return url;
+    return cleanUrl;
   };
 
   const renderImageInput = () => {
     const isDataUrl = editItem.imageUrl?.startsWith('data:');
-    const isDriveUrl = editItem.imageUrl?.includes('drive.google.com/uc');
+    const isDriveUrl = editItem.imageUrl?.includes('drive.google.com');
+
+    const handleSwitchMode = () => {
+        const newMode = driveMode === 'thumbnail' ? 'direct' : 'thumbnail';
+        setDriveMode(newMode);
+        const transformed = transformImageUrl(editItem.imageUrl, newMode);
+        setEditItem((prev: any) => ({...prev, imageUrl: transformed}));
+        setPreviewError(false);
+        setIsPreviewLoading(true);
+    };
 
     return (
       <div className="space-y-3">
           <div className="flex justify-between items-center">
             <div className="flex items-center gap-2">
                 <label className="text-xs font-bold uppercase text-gray-500">Image Asset</label>
-                {!isDataUrl && (
-                    <div className="group relative">
-                        <Info className="w-3 h-3 text-gray-300 cursor-help" />
-                        <div className="absolute left-0 bottom-full mb-2 w-48 bg-black text-white text-[10px] p-2 rounded leading-tight opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50">
-                            Paste a Google Drive "Share" link to save database space! Ensure permissions are set to "Anyone with the link".
-                        </div>
+                <div className="group relative">
+                    <Info className="w-3 h-3 text-gray-300 cursor-help" />
+                    <div className="absolute left-0 bottom-full mb-2 w-56 bg-black text-white text-[10px] p-3 rounded-xl leading-relaxed opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 shadow-xl border border-white/10">
+                        <p className="font-black mb-1 text-blue-400">Fixing [?] Icons:</p>
+                        Set Google Drive sharing to "Anyone with the link". If it still fails, use the "Fallback Engine" button in the preview.
                     </div>
-                )}
+                </div>
             </div>
             {editItem.imageUrl && (
               <button 
                 type="button" 
-                onClick={() => setEditItem((prev: any) => ({ ...prev, imageUrl: '' }))}
+                onClick={() => { setEditItem((prev: any) => ({ ...prev, imageUrl: '' })); setPreviewError(false); }}
                 className="text-xs font-bold text-red-500 flex items-center gap-1 hover:text-red-600"
               >
                 <Trash2 className="w-3 h-3" /> Clear
@@ -269,20 +265,69 @@ const AdminPage: React.FC = () => {
           </div>
           
           <div 
-              className="border-2 border-dashed border-gray-300 rounded-xl p-6 flex flex-col items-center justify-center text-center cursor-pointer hover:bg-gray-50 hover:border-black transition-all group relative overflow-hidden bg-gray-50/50"
-              onClick={() => document.getElementById('hidden-file-input')?.click()}
+              className={`border-2 border-dashed rounded-xl p-1 flex flex-col items-center justify-center text-center cursor-pointer transition-all group relative overflow-hidden bg-gray-50/50 h-56 ${previewError ? 'border-red-300 bg-red-50' : 'border-gray-300 hover:border-black'}`}
+              onClick={() => !editItem.imageUrl && document.getElementById('hidden-file-input')?.click()}
           >
               <input type="file" id="hidden-file-input" className="hidden" accept="image/*" onChange={(e) => {
                   const file = e.target.files?.[0];
                   if (file) handleImageUpload(file);
               }} />
+              
               {editItem.imageUrl ? (
-                  <div className={`relative ${editType === 'team-member' ? 'w-32 h-32 rounded-full' : 'w-full aspect-video rounded-lg'} bg-gray-200 overflow-hidden shadow-sm mx-auto animate-in fade-in duration-300`}>
-                      <img src={editItem.imageUrl} alt="Preview" className="w-full h-full object-cover" />
-                      <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex flex-col items-center justify-center text-white transition-opacity duration-200">
-                          <Upload className="w-8 h-8 mb-2" />
-                          <span className="font-bold text-sm">Replace Photo</span>
-                      </div>
+                  <div className="relative w-full h-full overflow-hidden rounded-lg bg-gray-100">
+                      {isPreviewLoading && (
+                          <div className="absolute inset-0 z-10 flex items-center justify-center bg-gray-100/50">
+                              <RefreshCw className="w-6 h-6 animate-spin text-gray-400" />
+                          </div>
+                      )}
+                      {previewError ? (
+                          <div className="w-full h-full flex flex-col items-center justify-center p-6 bg-red-50">
+                              <AlertTriangle className="w-8 h-8 text-red-500 mb-2" />
+                              <p className="text-xs font-bold text-red-700 leading-tight italic">Google Access Denied</p>
+                              <p className="text-[10px] text-red-500 mt-2 max-w-[220px]">
+                                {isDriveUrl 
+                                    ? "This file is Restricted. You must set sharing to 'Anyone with the link' inside Google Drive." 
+                                    : "This image link is broken or expired."}
+                              </p>
+                              <div className="flex flex-col gap-2 mt-4 w-full px-6">
+                                <button 
+                                  type="button"
+                                  onClick={(e) => { e.stopPropagation(); handleSwitchMode(); }}
+                                  className="w-full bg-black text-white px-3 py-2 rounded-lg text-[9px] font-bold flex items-center justify-center gap-2"
+                                >
+                                    <Zap className="w-3 h-3 text-yellow-400" /> Use Fallback Engine
+                                </button>
+                                {isDriveUrl && (
+                                    <a 
+                                      href={editItem.imageUrl.replace('/thumbnail?id=', '/file/d/').replace('/uc?id=', '/file/d/').split('&')[0]} 
+                                      target="_blank" 
+                                      rel="noreferrer"
+                                      className="w-full bg-white border border-gray-200 text-black px-3 py-2 rounded-lg text-[9px] font-bold flex items-center justify-center gap-1"
+                                      onClick={(e) => e.stopPropagation()}
+                                    >
+                                        Open Drive & Fix Sharing <ExternalLink className="w-3 h-3" />
+                                    </a>
+                                )}
+                              </div>
+                          </div>
+                      ) : (
+                        <>
+                          <img 
+                            src={editItem.imageUrl} 
+                            alt="Preview" 
+                            className="w-full h-full object-cover" 
+                            onError={() => { setPreviewError(true); setIsPreviewLoading(false); }}
+                            onLoad={() => { setPreviewError(false); setIsPreviewLoading(false); }}
+                          />
+                          <div 
+                            className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex flex-col items-center justify-center text-white transition-opacity duration-200"
+                            onClick={(e) => { e.stopPropagation(); document.getElementById('hidden-file-input')?.click(); }}
+                          >
+                              <Upload className="w-8 h-8 mb-2" />
+                              <span className="font-bold text-sm">Replace Photo</span>
+                          </div>
+                        </>
+                      )}
                   </div>
               ) : (
                   <div className="py-4">
@@ -290,7 +335,7 @@ const AdminPage: React.FC = () => {
                           <Upload className="w-6 h-6 text-gray-400" />
                       </div>
                       <p className="text-sm font-bold text-gray-900">Upload from Device</p>
-                      <p className="text-[10px] text-gray-400 mt-1 uppercase tracking-widest leading-none">Limit: 2MB</p>
+                      <p className="text-[10px] text-gray-400 mt-1 uppercase tracking-widest leading-none">Max: 2MB</p>
                   </div>
               )}
           </div>
@@ -301,12 +346,14 @@ const AdminPage: React.FC = () => {
             </div>
             <input 
               type="text" 
-              placeholder="Or paste Google Drive link here..." 
-              className={`w-full border border-gray-200 pl-11 pr-16 py-4 rounded-xl bg-white text-sm focus:border-black outline-none transition-all ${isDriveUrl ? 'border-green-200 bg-green-50/10' : ''}`}
-              value={isDataUrl ? 'Local File (Base64)' : (editItem.imageUrl || '')} 
+              placeholder="Paste Google Drive 'Share' link here..." 
+              className={`w-full border border-gray-200 pl-11 pr-16 py-4 rounded-xl bg-white text-sm focus:border-black outline-none transition-all ${isDriveUrl ? 'border-blue-200 bg-blue-50/10' : ''}`}
+              value={isDataUrl ? 'Local File (Encrypted)' : (editItem.imageUrl || '')} 
               onChange={e => {
-                  const transformed = transformImageUrl(e.target.value);
+                  const transformed = transformImageUrl(e.target.value, driveMode);
                   setEditItem((prev: any) => ({...prev, imageUrl: transformed}));
+                  setPreviewError(false);
+                  setIsPreviewLoading(true);
               }} 
               readOnly={!!isDataUrl} 
             />
@@ -314,8 +361,10 @@ const AdminPage: React.FC = () => {
             {isDriveUrl && <div className="absolute right-3 top-1/2 -translate-y-1/2 bg-blue-600 text-white px-2 py-0.5 rounded text-[8px] font-bold">DRIVE</div>}
           </div>
           
-          {!isDataUrl && editItem.imageUrl && !isDriveUrl && (
-              <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest px-2 italic">Using external URL — saves 99% storage space</p>
+          {isDriveUrl && !previewError && !isPreviewLoading && (
+              <p className="text-[9px] font-bold text-green-600 uppercase tracking-widest px-2 italic flex items-center gap-1">
+                 <Check className="w-3 h-3" /> Connection Established ({driveMode === 'thumbnail' ? 'Optimized' : 'Raw'})
+              </p>
           )}
       </div>
     );
@@ -381,19 +430,22 @@ const AdminPage: React.FC = () => {
                    <div className="space-y-6">
                         <div className="bg-white p-8 rounded-2xl border border-gray-200 shadow-sm">
                             <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
-                                <Database className="w-5 h-5" /> Database Optimization
+                                <Database />
                             </h3>
-                            <p className="text-sm text-gray-500 mb-6 leading-relaxed">
-                                To prevent your photos from disappearing, we recommend using <strong>Google Drive</strong> or <strong>Imgur</strong> links. 
-                                <br/><br/>
-                                1. Upload your photo to Google Drive.<br/>
-                                2. Set permissions to "Anyone with the link can view".<br/>
-                                3. Paste the share link in the Image Asset field.
-                            </p>
+                            <div className="text-sm text-gray-500 mb-6 leading-relaxed bg-blue-50 p-6 rounded-2xl border border-blue-100">
+                                <h4 className="font-black text-blue-900 mb-2 flex items-center gap-2 uppercase text-xs tracking-widest"><LinkIcon className="w-4 h-4" /> Best Practice: Direct Linking</h4>
+                                <p className="mb-4">Browsers limit museum data to 5MB. For best performance, use Google Drive links for all photos.</p>
+                                <ol className="list-decimal pl-5 space-y-2 font-medium">
+                                    <li>Upload high-res photo to Google Drive.</li>
+                                    <li>Right-click → Share → General Access.</li>
+                                    <li>Set to <span className="text-blue-700 font-bold underline">"Anyone with the link"</span>.</li>
+                                    <li>Paste the link in the museum editor.</li>
+                                </ol>
+                            </div>
                             <div className="mb-8 p-4 bg-gray-50 rounded-xl border border-gray-100">
                                 <div className="flex justify-between items-center mb-2">
                                     <span className="text-xs font-bold uppercase text-gray-400">Total Browser Storage Load</span>
-                                    <span className="text-xs font-bold">{storageMB} MB</span>
+                                    <span className="text-xs font-bold">{storageMB} MB / 5.0MB</span>
                                 </div>
                                 <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
                                     <div className={`h-full transition-all ${usagePercent > 80 ? 'bg-red-500' : 'bg-green-500'}`} style={{ width: `${usagePercent}%` }} />
@@ -401,7 +453,7 @@ const AdminPage: React.FC = () => {
                             </div>
                             <div className="flex flex-col sm:flex-row gap-4">
                                 <button 
-                                    onClick={() => { if(window.confirm('EXTREME WARNING: This will delete ALL custom exhibitions, artworks, products, and images, resetting MOCA to its factory default state. Continue?')) clearAllAppData(); }}
+                                    onClick={() => { if(window.confirm('WARNING: This will delete ALL custom content and reset MOCA to its factory state. Proceed?')) clearAllAppData(); }}
                                     className="flex-1 bg-red-600 text-white py-3 rounded-xl font-bold text-sm uppercase flex items-center justify-center gap-2 hover:bg-red-700 transition-colors shadow-lg shadow-red-100"
                                 >
                                     <RotateCcw className="w-4 h-4" /> Hard Reset App
@@ -414,16 +466,6 @@ const AdminPage: React.FC = () => {
                                 </button>
                             </div>
                         </div>
-
-                        {usagePercent > 85 && (
-                            <div className="bg-amber-50 border border-amber-200 p-6 rounded-2xl flex gap-4 items-start animate-pulse">
-                                <AlertTriangle className="w-6 h-6 text-amber-600 shrink-0" />
-                                <div>
-                                    <h4 className="font-bold text-amber-800 mb-1">Critical Storage Alert</h4>
-                                    <p className="text-sm text-amber-700">Database usage is {usagePercent.toFixed(0)}%. Avoid uploading new files from your device. Switch to Google Drive links to continue adding content safely.</p>
-                                </div>
-                            </div>
-                        )}
                    </div>
                </div>
            )}
@@ -490,11 +532,9 @@ const AdminPage: React.FC = () => {
 
            {activeTab === 'pages' && pageAssets && (
                <div className="space-y-12 animate-in fade-in slide-in-from-bottom-2 duration-300">
-                   {/* About Page Editor Section */}
                    <div className="bg-white p-8 rounded-2xl border border-gray-200 shadow-sm">
-                        <h2 className="text-2xl font-black mb-6 border-b pb-4">About Page (Our Story)</h2>
+                        <h2 className="text-2xl font-black mb-6 border-b pb-4">Page Content Editor</h2>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
-                            {/* Text Fields */}
                             <div className="space-y-6">
                                 <div>
                                     <label className="text-[10px] font-black uppercase text-gray-400 mb-1 block">Main Title</label>
@@ -509,37 +549,29 @@ const AdminPage: React.FC = () => {
                                     }} />
                                 </div>
                                 <div>
-                                    <label className="text-[10px] font-black uppercase text-gray-400 mb-1 block">Intro Paragraph 1</label>
+                                    <label className="text-[10px] font-black uppercase text-gray-400 mb-1 block">Description Paragraph</label>
                                     <textarea className="w-full border p-3 rounded-lg text-sm" rows={4} value={pageAssets.about.introPara1} onChange={e => {
                                         const updated = {...pageAssets}; updated.about.introPara1 = e.target.value; setPageAssets(updated); savePageAssets(updated);
                                     }} />
                                 </div>
-                                <div>
-                                    <label className="text-[10px] font-black uppercase text-gray-400 mb-1 block">Intro Paragraph 2</label>
-                                    <textarea className="w-full border p-3 rounded-lg text-sm" rows={4} value={pageAssets.about.introPara2} onChange={e => {
-                                        const updated = {...pageAssets}; updated.about.introPara2 = e.target.value; setPageAssets(updated); savePageAssets(updated);
-                                    }} />
-                                </div>
                             </div>
-                            {/* Images */}
                             <div className="space-y-8">
                                 <div className="p-4 bg-gray-50 rounded-xl border border-dashed border-gray-200">
-                                    <h4 className="font-bold text-xs uppercase mb-3">Hero Landscape</h4>
+                                    <h4 className="font-bold text-xs uppercase mb-3 text-gray-400">Hero Section Image</h4>
                                     <img src={pageAssets.about.hero} className="w-full h-32 object-cover rounded-lg mb-3 shadow-sm" />
-                                    <button onClick={() => openEditor('page-asset', { imageUrl: pageAssets.about.hero }, 'about.hero')} className="w-full bg-black text-white py-2 rounded font-bold text-xs uppercase">Change Hero</button>
+                                    <button onClick={() => openEditor('page-asset', { imageUrl: pageAssets.about.hero }, 'about.hero')} className="w-full bg-black text-white py-2 rounded font-bold text-xs uppercase">Edit Hero Photo</button>
                                 </div>
                                 <div className="p-4 bg-gray-50 rounded-xl border border-dashed border-gray-200">
-                                    <h4 className="font-bold text-xs uppercase mb-3">Atrium Square</h4>
-                                    <img src={pageAssets.about.atrium} className="w-full h-48 object-cover rounded-lg mb-3 shadow-sm" />
-                                    <button onClick={() => openEditor('page-asset', { imageUrl: pageAssets.about.atrium }, 'about.atrium')} className="w-full bg-black text-white py-2 rounded font-bold text-xs uppercase">Change Atrium</button>
+                                    <h4 className="font-bold text-xs uppercase mb-3 text-gray-400">Main Atrium Photo</h4>
+                                    <img src={pageAssets.about.atrium} className="w-full h-40 object-cover rounded-lg mb-3 shadow-sm" />
+                                    <button onClick={() => openEditor('page-asset', { imageUrl: pageAssets.about.atrium }, 'about.atrium')} className="w-full bg-black text-white py-2 rounded font-bold text-xs uppercase">Edit Atrium Photo</button>
                                 </div>
                             </div>
                         </div>
 
-                        {/* Team Management */}
                         <div className="mt-16 border-t pt-10">
                             <div className="flex justify-between items-center mb-8">
-                                <div><h3 className="text-xl font-bold">Our Team</h3><p className="text-sm text-gray-400">Manage photos, names, and designations.</p></div>
+                                <div><h3 className="text-xl font-bold">Museum Leadership</h3><p className="text-sm text-gray-400">Manage names, roles, and staff photos.</p></div>
                                 <button onClick={() => openEditor('team-member')} className="bg-black text-white px-4 py-2 rounded-lg font-bold text-xs uppercase flex items-center gap-2">
                                     <UserPlus className="w-4 h-4" /> Add Team Member
                                 </button>
@@ -563,43 +595,13 @@ const AdminPage: React.FC = () => {
                             </div>
                         </div>
                    </div>
-
-                   {/* Other Pages */}
-                   <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                        <div className="bg-white p-6 rounded-2xl border border-gray-200">
-                             <h3 className="font-black uppercase text-xs mb-4">Visit Page Hero</h3>
-                             <img src={pageAssets.visit.hero} className="w-full h-32 object-cover rounded mb-4" />
-                             <button onClick={() => openEditor('page-asset', { imageUrl: pageAssets.visit.hero }, 'visit.hero')} className="w-full py-2 border border-black font-bold text-xs uppercase">Edit Visit Image</button>
-                        </div>
-                        <div className="bg-white p-6 rounded-2xl border border-gray-200">
-                             <h3 className="font-black uppercase text-xs mb-4">Membership Hero</h3>
-                             <img src={pageAssets.membership.hero} className="w-full h-32 object-cover rounded mb-4" />
-                             <button onClick={() => openEditor('page-asset', { imageUrl: pageAssets.membership.hero }, 'membership.hero')} className="w-full py-2 border border-black font-bold text-xs uppercase">Edit Membership Image</button>
-                        </div>
-                   </div>
-               </div>
-           )}
-
-           {activeTab === 'bookings' && (
-               <div className="bg-white rounded-xl border overflow-hidden">
-                    <table className="w-full text-left text-sm">
-                        <thead className="bg-gray-50 text-gray-500 font-bold uppercase tracking-wider text-[10px]"><tr><th className="px-6 py-4">ID</th><th className="px-6 py-4">Customer</th><th className="px-6 py-4">Date</th><th className="px-6 py-4">Guests</th></tr></thead>
-                        <tbody className="divide-y">{bookings.map(b => (
-                            <tr key={b.id} className="hover:bg-gray-50">
-                                <td className="px-6 py-4 font-mono">{b.id}</td>
-                                <td className="px-6 py-4 font-bold">{b.customerName}</td>
-                                <td className="px-6 py-4">{new Date(b.date).toLocaleDateString()}</td>
-                                <td className="px-6 py-4">{b.tickets.adult + b.tickets.student + b.tickets.child}</td>
-                            </tr>
-                        ))}</tbody>
-                    </table>
                </div>
            )}
 
            {activeTab === 'exhibitions' && (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <button onClick={() => openEditor('exhibition')} className="border-2 border-dashed border-gray-200 rounded-xl h-48 flex flex-col items-center justify-center text-gray-400 hover:border-black hover:text-black transition-all">
-                        <Plus className="w-8 h-8 mb-2" /> <span className="font-bold text-xs uppercase">Add New Exhibition</span>
+                        <Plus className="w-8 h-8 mb-2" /> <span className="font-bold text-xs uppercase">New Exhibition</span>
                     </button>
                     {exhibitions.map(ex => (
                        <div key={ex.id} className="bg-white border rounded-xl overflow-hidden flex flex-col group">
@@ -620,7 +622,7 @@ const AdminPage: React.FC = () => {
                <div className="space-y-8">
                    {homepageGallery.map((track, trackIdx) => (
                        <div key={trackIdx} className="bg-white p-6 rounded-2xl border">
-                           <div className="flex justify-between items-center mb-6"><h3 className="text-lg font-bold">Track {trackIdx + 1}</h3><button onClick={() => openEditor('gallery-image', null, trackIdx)} className="bg-black text-white px-3 py-1.5 rounded-lg text-xs font-bold uppercase">Add Image</button></div>
+                           <div className="flex justify-between items-center mb-6"><h3 className="text-lg font-bold">Scrolling Track {trackIdx + 1}</h3><button onClick={() => openEditor('gallery-image', null, trackIdx)} className="bg-black text-white px-3 py-1.5 rounded-lg text-xs font-bold uppercase">Add Photo</button></div>
                            <div className="flex gap-4 overflow-x-auto pb-4">
                                {track.images.map((img: string, i: number) => (
                                    <div key={i} className="w-32 h-32 shrink-0 relative rounded-lg overflow-hidden group border">
