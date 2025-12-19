@@ -1,5 +1,5 @@
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { HashRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
 import Header from './components/Header';
 import Hero from './components/Hero';
@@ -26,6 +26,8 @@ import PrivacyPolicy from './components/PrivacyPolicy';
 import TermsOfUse from './components/TermsOfUse';
 import RefundPolicy from './components/RefundPolicy';
 import CuratorChat from './components/CuratorChat';
+import { getPageAssets } from './services/data';
+import { PageAssets } from './types';
 
 const ScrollToTop = () => {
   const { pathname } = useLocation();
@@ -49,9 +51,25 @@ const HomePage = () => (
   </>
 );
 
+const VisitPage = () => {
+    const [assets, setAssets] = useState<PageAssets | null>(null);
+    useEffect(() => { setAssets(getPageAssets()); }, []);
+    if (!assets) return null;
+    return (
+        <div className="pt-10">
+            <div className="max-w-[1600px] mx-auto px-6 mb-12">
+                <h1 className="text-6xl md:text-9xl font-black tracking-tighter mb-8">Visit Us</h1>
+                <div className="w-full aspect-[21/9] rounded-sm overflow-hidden mb-20 shadow-2xl">
+                    <img src={assets.visit.hero} className="w-full h-full object-cover" alt="Museum Entry" />
+                </div>
+            </div>
+            <VisitInfo />
+        </div>
+    );
+};
+
 const Layout: React.FC = () => {
     const location = useLocation();
-    // Hide chat on admin page to avoid covering controls
     const showChat = !['/admin'].includes(location.pathname);
 
     return (
@@ -61,7 +79,8 @@ const Layout: React.FC = () => {
                 <Route path="/" element={<HomePage />} />
                 <Route path="/exhibitions" element={<ExhibitionsPage />} />
                 <Route path="/collection" element={<CollectionPage />} />
-                <Route path="/visit" element={<CalendarPage />} />
+                <Route path="/visit" element={<VisitPage />} />
+                <Route path="/whatson" element={<CalendarPage />} />
                 <Route path="/shop" element={<CollectablesPage />} />
                 <Route path="/order-status" element={<OrderStatusPage />} />
                 <Route path="/booking" element={<BookingPage />} />
