@@ -17,6 +17,16 @@ export interface Artwork {
   imageUrl: string;
 }
 
+export interface Event {
+  id: string;
+  title: string;
+  type: string;
+  date: string;
+  location: string;
+  imageUrl: string;
+  description?: string;
+}
+
 export interface Collectable {
   id: string;
   name: string;
@@ -96,6 +106,10 @@ export interface PageAssets {
   };
   visit: {
     hero: string;
+    hours: string;
+    locationText: string;
+    googleMapsLink: string;
+    admissionInfo: string;
   };
   membership: {
     hero: string;
