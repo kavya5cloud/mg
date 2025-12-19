@@ -2,38 +2,16 @@
 import { EXHIBITIONS, ARTWORKS, COLLECTABLES } from '../constants';
 import { Exhibition, Artwork, Collectable, ShopOrder, Review, Booking, PageAssets } from '../types';
 
-// More reliable and diverse image IDs from Picsum
+// Persistence Config
+const DB_NAME = 'MOCA_GANDHINAGAR_DB';
+const DB_VERSION = 1;
+const STORE_NAME = 'museum_data';
+
+// Default Data Structures
 const DEFAULT_GALLERY = [
-  {
-    speed: 0.1,
-    direction: -1,
-    images: [
-      "https://picsum.photos/id/20/800/800",
-      "https://picsum.photos/id/24/800/800",
-      "https://picsum.photos/id/28/800/800",
-      "https://picsum.photos/id/30/800/800",
-    ]
-  },
-  {
-    speed: 0.25,
-    direction: 1,
-    images: [
-      "https://picsum.photos/id/36/800/800",
-      "https://picsum.photos/id/38/800/800",
-      "https://picsum.photos/id/42/800/800",
-      "https://picsum.photos/id/48/800/800",
-    ]
-  },
-  {
-    speed: 0.15,
-    direction: -1,
-    images: [
-      "https://picsum.photos/id/52/800/800",
-      "https://picsum.photos/id/55/800/800",
-      "https://picsum.photos/id/60/800/800",
-      "https://picsum.photos/id/64/800/800",
-    ]
-  }
+  { speed: 0.1, direction: -1, images: ["https://picsum.photos/id/20/800/800", "https://picsum.photos/id/24/800/800", "https://picsum.photos/id/28/800/800", "https://picsum.photos/id/30/800/800"] },
+  { speed: 0.25, direction: 1, images: ["https://picsum.photos/id/36/800/800", "https://picsum.photos/id/38/800/800", "https://picsum.photos/id/42/800/800", "https://picsum.photos/id/48/800/800"] },
+  { speed: 0.15, direction: -1, images: ["https://picsum.photos/id/52/800/800", "https://picsum.photos/id/55/800/800", "https://picsum.photos/id/60/800/800", "https://picsum.photos/id/64/800/800"] }
 ];
 
 const DEFAULT_PAGE_ASSETS: PageAssets = {
@@ -42,152 +20,170 @@ const DEFAULT_PAGE_ASSETS: PageAssets = {
     atrium: "https://picsum.photos/id/238/800/800",
     title: "Our Story",
     introTitle: "A new cultural landmark in the heart of the Green City.",
-    introPara1: "Established in 2024, the Museum of Contemporary Art Gandhinagar (MOCA) stands as a testament to the evolving cultural landscape of Gujarat. Located at Veer Residency, Gandhinagar Mahudi, MOCA is not just a repository of objects, but a living, breathing space for dialogue, experimentation, and discovery.",
-    introPara2: "We believe that modern art is a mirror to society. Our institution is dedicated to presenting the most thought-provoking art of our time, bridging the gap between local heritage and global contemporary movements.",
+    introPara1: "Established in 2024, the Museum of Contemporary Art Gandhinagar (MOCA) stands as a testament to the evolving cultural landscape of Gujarat.",
+    introPara2: "We believe that modern art is a mirror to society. Our institution is dedicated to presenting the most thought-provoking art of our time.",
     missionTitle: "Our Mission",
-    missionDesc: "To inspire creativity and critical thinking through the presentation, collection, and preservation of modern and contemporary art.",
+    missionDesc: "To inspire creativity and critical thinking through the presentation and collection of modern art.",
     globalTitle: "Global Perspective",
-    globalDesc: "While deeply rooted in the Indian context, MOCA Gandhinagar fosters an international outlook through worldwide collaborations.",
+    globalDesc: "While deeply rooted in India, MOCA Gandhinagar fosters an international outlook through worldwide collaborations.",
     communityTitle: "Community First",
-    communityDesc: "We are committed to accessibility and education, striving to make contemporary art accessible to everyone.",
+    communityDesc: "We are committed to accessibility, striving to make contemporary art accessible to everyone.",
     archTitle: "Architecture & Space",
-    archPara1: "The MOCA building itself is a work of art. Designed to reflect the modernist planning principles of Le Corbusier—who influenced the region's architecture—the museum features clean lines and raw concrete.",
-    archPara2: "Spanning 40,000 square feet across three levels, the space includes flexible exhibition halls, a dedicated new media wing, a sculpture garden, and a research library.",
+    archPara1: "The MOCA building reflects modernist planning principles with clean lines and raw concrete.",
+    archPara2: "Spanning 40,000 square feet, the space includes flexible halls, a media wing, and a sculpture garden.",
     team: [
       { id: 't1', name: 'Dr. Aarav Patel', role: 'Director & Chief Curator', imageUrl: 'https://picsum.photos/id/64/400/400' },
       { id: 't2', name: 'Meera Shah', role: 'Head of Education', imageUrl: 'https://picsum.photos/id/65/400/400' },
       { id: 't3', name: 'Sanjay Desai', role: 'Development Manager', imageUrl: 'https://picsum.photos/id/66/400/400' }
     ]
   },
-  visit: {
-    hero: "https://picsum.photos/id/20/400/300"
-  },
-  membership: {
-    hero: "https://picsum.photos/id/1015/600/600"
-  },
-  home: {
-    heroBg: ""
-  }
+  visit: { hero: "https://picsum.photos/id/20/400/300" },
+  membership: { hero: "https://picsum.photos/id/1015/600/600" },
+  home: { heroBg: "" }
 };
 
-const VALIDATE_ASSETS = (data: any): data is PageAssets => {
-    return data && data.about && data.about.hero && Array.isArray(data.about.team);
+// Internal Cache for Synchronous Access
+let cache: Record<string, any> = {};
+let dbInstance: IDBDatabase | null = null;
+
+// Initialize Database
+const initDB = (): Promise<IDBDatabase> => {
+    return new Promise((resolve, reject) => {
+        if (dbInstance) return resolve(dbInstance);
+        const request = indexedDB.open(DB_NAME, DB_VERSION);
+        request.onupgradeneeded = (e: any) => {
+            const db = e.target.result;
+            if (!db.objectStoreNames.contains(STORE_NAME)) {
+                db.createObjectStore(STORE_NAME);
+            }
+        };
+        request.onsuccess = (e: any) => {
+            dbInstance = e.target.result;
+            resolve(dbInstance!);
+        };
+        request.onerror = (e) => reject(e);
+    });
 };
 
-// Helper to calculate used storage in MB
-export const getStorageUsage = () => {
-    let total = 0;
-    for (const x in localStorage) {
-        if (localStorage.hasOwnProperty(x)) {
-            total += ((localStorage[x].length + x.length) * 2);
+// Migrate from LocalStorage to IndexedDB
+const migrateData = async () => {
+    const keys = ['moca_exhibitions', 'moca_artworks', 'moca_collectables', 'moca_shop_orders', 'moca_bookings', 'moca_newsletter', 'moca_reviews', 'moca_homepage_gallery', 'moca_page_assets', 'moca_staff_mode'];
+    const db = await initDB();
+    
+    for (const key of keys) {
+        const localData = localStorage.getItem(key);
+        if (localData) {
+            try {
+                const parsed = JSON.parse(localData);
+                const tx = db.transaction(STORE_NAME, 'readwrite');
+                tx.objectStore(STORE_NAME).put(parsed, key);
+                localStorage.removeItem(key); // Cleanup
+                cache[key] = parsed;
+            } catch (e) {
+                console.error(`Migration failed for ${key}`, e);
+            }
         }
     }
-    return (total / 1024 / 1024).toFixed(2);
 };
 
-// Clear all app data
-export const clearAllAppData = () => {
-    const keys = Object.keys(localStorage);
-    keys.forEach(key => {
-        if (key.startsWith('moca_')) {
-            localStorage.removeItem(key);
-        }
+// High-speed data pre-fetcher
+export const bootstrapMuseumData = async () => {
+    await initDB();
+    await migrateData();
+    const db = await initDB();
+    const tx = db.transaction(STORE_NAME, 'readonly');
+    const store = tx.objectStore(STORE_NAME);
+    
+    return new Promise<void>((resolve) => {
+        const request = store.getAllKeys();
+        request.onsuccess = () => {
+            const keys = request.result as string[];
+            let completed = 0;
+            if (keys.length === 0) resolve();
+            keys.forEach(key => {
+                const getReq = store.get(key);
+                getReq.onsuccess = () => {
+                    cache[key] = getReq.result;
+                    completed++;
+                    if (completed === keys.length) resolve();
+                };
+            });
+        };
     });
+};
+
+// Standard Persistence Helpers (Sync API, Async Background Save)
+const getFromCache = <T>(key: string, defaultValue: T): T => {
+    if (cache[key] !== undefined) return cache[key];
+    return defaultValue;
+};
+
+const saveToDB = async (key: string, data: any) => {
+    cache[key] = data;
+    const db = await initDB();
+    const tx = db.transaction(STORE_NAME, 'readwrite');
+    tx.objectStore(STORE_NAME).put(data, key);
+};
+
+// PUBLIC API
+export const getStorageUsage = () => {
+    // Estimating indexedDB usage is complex, we'll return an "unlimited" status or size of cache
+    const size = new Blob([JSON.stringify(cache)]).size;
+    return (size / 1024 / 1024).toFixed(2);
+};
+
+export const clearAllAppData = async () => {
+    const db = await initDB();
+    const tx = db.transaction(STORE_NAME, 'readwrite');
+    tx.objectStore(STORE_NAME).clear();
+    cache = {};
+    localStorage.clear();
     window.location.reload();
 };
 
-// Helper to manage localStorage with Quota Handling
-const getStorage = <T>(key: string, defaultData: T[] | T): T => {
-    try {
-        const stored = localStorage.getItem(key);
-        if (stored) {
-            const parsed = JSON.parse(stored);
-            if (Array.isArray(parsed) && parsed.length === 0 && Array.isArray(defaultData) && defaultData.length > 0) {
-                return defaultData as T;
-            }
-            return parsed;
-        }
-        setStorage(key, defaultData);
-        return defaultData as T;
-    } catch (e) {
-        console.error("Storage read error", e);
-        return defaultData as T;
-    }
-};
+export const getPageAssets = (): PageAssets => getFromCache('moca_page_assets', DEFAULT_PAGE_ASSETS);
+export const savePageAssets = (data: PageAssets) => { saveToDB('moca_page_assets', data); return true; };
 
-const setStorage = <T>(key: string, data: T): boolean => {
-    try {
-        localStorage.setItem(key, JSON.stringify(data));
-        return true;
-    } catch (e) {
-        if (e instanceof DOMException && e.name === 'QuotaExceededError') {
-            alert("Storage Quota Exceeded! The browser's 5MB limit has been reached. Please upload smaller photos or clear old orders/data in the Admin Panel.");
-        }
-        console.error("Storage write error", e);
-        return false;
-    }
-};
+export const getExhibitions = (): Exhibition[] => getFromCache('moca_exhibitions', EXHIBITIONS);
+export const saveExhibitions = (data: Exhibition[]) => { saveToDB('moca_exhibitions', data); return true; };
 
-export const getPageAssets = (): PageAssets => {
-    const data = getStorage<PageAssets>('moca_page_assets', DEFAULT_PAGE_ASSETS);
-    return VALIDATE_ASSETS(data) ? data : DEFAULT_PAGE_ASSETS;
-};
+export const getArtworks = (): Artwork[] => getFromCache('moca_artworks', ARTWORKS);
+export const saveArtworks = (data: Artwork[]) => { saveToDB('moca_artworks', data); return true; };
 
-export const savePageAssets = (data: PageAssets) => setStorage('moca_page_assets', data);
+export const getCollectables = (): Collectable[] => getFromCache('moca_collectables', COLLECTABLES);
+export const saveCollectables = (data: Collectable[]) => { saveToDB('moca_collectables', data); return true; };
 
-export const getExhibitions = (): Exhibition[] => getStorage<Exhibition[]>('moca_exhibitions', EXHIBITIONS);
-export const saveExhibitions = (data: Exhibition[]) => setStorage('moca_exhibitions', data);
-
-export const getArtworks = (): Artwork[] => getStorage<Artwork[]>('moca_artworks', ARTWORKS);
-export const saveArtworks = (data: Artwork[]) => setStorage('moca_artworks', data);
-
-export const getCollectables = (): Collectable[] => getStorage<Collectable[]>('moca_collectables', COLLECTABLES);
-export const saveCollectables = (data: Collectable[]) => setStorage('moca_collectables', data);
-
-export const getShopOrders = (): ShopOrder[] => getStorage<ShopOrder[]>('moca_shop_orders', []);
+export const getShopOrders = (): ShopOrder[] => getFromCache('moca_shop_orders', []);
 export const saveShopOrder = (order: ShopOrder) => {
     const orders = getShopOrders();
-    setStorage('moca_shop_orders', [order, ...orders]);
+    saveToDB('moca_shop_orders', [order, ...orders]);
 };
-export const updateShopOrders = (orders: ShopOrder[]) => setStorage('moca_shop_orders', orders);
+export const updateShopOrders = (orders: ShopOrder[]) => saveToDB('moca_shop_orders', orders);
 
-export const getBookings = (): Booking[] => getStorage<Booking[]>('moca_bookings', []);
+export const getBookings = (): Booking[] => getFromCache('moca_bookings', []);
 export const saveBooking = (booking: Booking) => {
     const bookings = getBookings();
-    setStorage('moca_bookings', [booking, ...bookings]);
+    saveToDB('moca_bookings', [booking, ...bookings]);
 };
 
-export const getHomepageGallery = () => {
-    const data = getStorage('moca_homepage_gallery', DEFAULT_GALLERY);
-    if (!Array.isArray(data) || data.length === 0 || !data[0].images) {
-        setStorage('moca_homepage_gallery', DEFAULT_GALLERY);
-        return DEFAULT_GALLERY;
-    }
-    return data;
-};
-export const saveHomepageGallery = (data: any) => setStorage('moca_homepage_gallery', data);
-export const resetHomepageGallery = () => {
-    setStorage('moca_homepage_gallery', DEFAULT_GALLERY);
-    return DEFAULT_GALLERY;
-};
+export const getHomepageGallery = () => getFromCache('moca_homepage_gallery', DEFAULT_GALLERY);
+export const saveHomepageGallery = (data: any) => saveToDB('moca_homepage_gallery', data);
+export const resetHomepageGallery = () => { saveToDB('moca_homepage_gallery', DEFAULT_GALLERY); return DEFAULT_GALLERY; };
 
 export const getReviews = (itemId: string): Review[] => {
-    const allReviews = getStorage<Review[]>('moca_reviews', []);
-    return allReviews.filter(r => r.itemId === itemId).sort((a, b) => b.timestamp - a.timestamp);
+    const all = getFromCache<Review[]>('moca_reviews', []);
+    return all.filter(r => r.itemId === itemId).sort((a, b) => b.timestamp - a.timestamp);
 };
-
 export const addReview = (review: Review) => {
-    const allReviews = getStorage<Review[]>('moca_reviews', []);
-    setStorage('moca_reviews', [review, ...allReviews]);
+    const all = getFromCache<Review[]>('moca_reviews', []);
+    saveToDB('moca_reviews', [review, ...all]);
 };
 
-export const getNewsletterEmails = (): string[] => getStorage<string[]>('moca_newsletter', []);
+export const getNewsletterEmails = (): string[] => getFromCache('moca_newsletter', []);
 export const saveNewsletterEmail = (email: string) => {
     const emails = getNewsletterEmails();
-    if (!emails.includes(email)) {
-        setStorage('moca_newsletter', [email, ...emails]);
-    }
+    if (!emails.includes(email)) saveToDB('moca_newsletter', [email, ...emails]);
 };
 
-export const getStaffMode = (): boolean => getStorage<boolean>('moca_staff_mode', false);
-export const setStaffMode = (enabled: boolean) => setStorage('moca_staff_mode', enabled);
+export const getStaffMode = (): boolean => getFromCache('moca_staff_mode', false);
+export const setStaffMode = (enabled: boolean) => saveToDB('moca_staff_mode', enabled);
