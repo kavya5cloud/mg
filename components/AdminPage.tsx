@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { Lock, Search, RefreshCw, LogOut, Pen, Trash, Plus, ShoppingBag, Image as ImageIcon, Check, X, Package, Filter, Upload, Mail, Home, RotateCcw, UserPlus, Eye, EyeOff, IndianRupee, Trash2, Database, AlertTriangle, Link as LinkIcon, Info, ExternalLink, Zap, ShieldCheck, Ticket } from 'lucide-react';
+import { Lock, Search, RefreshCw, LogOut, Pen, Trash, Plus, ShoppingBag, Image as ImageIcon, Check, X, Package, Filter, Upload, Mail, Home, RotateCcw, UserPlus, Eye, EyeOff, IndianRupee, Trash2, Database, AlertTriangle, Link as LinkIcon, Info, ExternalLink, Zap, ShieldCheck, Ticket, Users } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
 import { 
     getExhibitions, saveExhibitions, 
@@ -16,7 +16,7 @@ import {
 } from '../services/data';
 import { Exhibition, Artwork, Collectable, ShopOrder, Booking, PageAssets, TeamMember } from '../types';
 
-type Tab = 'bookings' | 'orders' | 'shop' | 'exhibitions' | 'collection' | 'homepage' | 'content' | 'newsletter' | 'settings';
+type Tab = 'bookings' | 'shop' | 'exhibitions' | 'collection' | 'homepage' | 'content' | 'newsletter' | 'settings';
 
 const AdminPage: React.FC = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -135,10 +135,16 @@ const AdminPage: React.FC = () => {
       } else if (editType === 'team-member' && pageAssets) {
           const updatedAssets = { ...pageAssets };
           const id = editItem.id || Date.now().toString();
+          const teamMemberData = { 
+              id, 
+              name: editItem.name || 'Anonymous Staff', 
+              role: editItem.role || 'Contributor', 
+              imageUrl: editItem.imageUrl || 'https://picsum.photos/400/400' 
+          };
           if (editItem.id) {
-              updatedAssets.about.team = updatedAssets.about.team.map(m => m.id === id ? editItem : m);
+              updatedAssets.about.team = updatedAssets.about.team.map(m => m.id === id ? teamMemberData : m);
           } else {
-              updatedAssets.about.team = [...updatedAssets.about.team, { ...editItem, id }];
+              updatedAssets.about.team = [...updatedAssets.about.team, teamMemberData];
           }
           success = savePageAssets(updatedAssets);
       } else if (editType === 'page-asset' && activeAssetKey && pageAssets) {
@@ -333,6 +339,33 @@ const AdminPage: React.FC = () => {
                            </div>
                        </div>
                    </div>
+
+                   {/* TEAM MANAGEMENT SECTION */}
+                   <div className="bg-gray-50 p-10 rounded-[3rem] border-2 border-gray-100">
+                        <div className="flex justify-between items-center mb-10 border-b pb-6">
+                            <h3 className="text-2xl font-black uppercase tracking-widest">Museum Team</h3>
+                            <button onClick={() => openEditor('team-member')} className="bg-black text-white px-6 py-2 rounded-2xl text-[10px] font-black uppercase flex items-center gap-2">
+                                <UserPlus className="w-4 h-4" /> Add Member
+                            </button>
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                            {pageAssets.about.team.map((member) => (
+                                <div key={member.id} className="bg-white p-6 rounded-[2rem] border-2 border-gray-100 flex items-center gap-4 group">
+                                    <div className="w-16 h-16 rounded-full overflow-hidden shrink-0 border-2 border-gray-50">
+                                        <img src={member.imageUrl} className="w-full h-full object-cover" />
+                                    </div>
+                                    <div className="flex-grow min-w-0">
+                                        <h4 className="font-bold text-sm truncate">{member.name}</h4>
+                                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest truncate">{member.role}</p>
+                                    </div>
+                                    <div className="flex flex-col gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                        <button onClick={() => openEditor('team-member', member)} className="p-2 hover:bg-gray-100 rounded-lg"><Pen className="w-3 h-3" /></button>
+                                        <button onClick={() => handleDelete(member.id, 'team-member')} className="p-2 hover:bg-red-50 text-red-500 rounded-lg"><Trash className="w-3 h-3" /></button>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                   </div>
                </div>
            )}
 
@@ -386,6 +419,16 @@ const AdminPage: React.FC = () => {
                                     <input className="w-full border-2 border-gray-100 p-5 rounded-2xl font-bold outline-none focus:border-black" placeholder="Category" value={editItem.category || ''} onChange={e => setEditItem((prev:any)=>({...prev, category: e.target.value}))} />
                                     {editType === 'collectable' && <input className="w-full border-2 border-gray-100 p-5 rounded-2xl font-bold outline-none focus:border-black" placeholder="Price" type="number" value={editItem.price || ''} onChange={e => setEditItem((prev:any)=>({...prev, price: Number(e.target.value)}))} />}
                                 </div>
+                            </div>
+                        )}
+                        {editType === 'team-member' && (
+                            <div className="space-y-6">
+                                <div className="flex items-center gap-4 bg-gray-50 p-4 rounded-2xl border border-gray-100 mb-4">
+                                    <div className="p-3 bg-black text-white rounded-full"><Users className="w-5 h-5" /></div>
+                                    <p className="text-xs font-bold uppercase tracking-widest">Public Profile Information</p>
+                                </div>
+                                <input required className="w-full border-2 border-gray-100 p-5 rounded-2xl font-bold outline-none focus:border-black" placeholder="Full Professional Name" value={editItem.name || ''} onChange={e => setEditItem((prev:any)=>({...prev, name: e.target.value}))} />
+                                <input required className="w-full border-2 border-gray-100 p-5 rounded-2xl font-bold outline-none focus:border-black" placeholder="Role / Designation" value={editItem.role || ''} onChange={e => setEditItem((prev:any)=>({...prev, role: e.target.value}))} />
                             </div>
                         )}
                         {renderImageInput()}
