@@ -11,10 +11,10 @@ if (!rootElement) {
 
 const startApp = async () => {
     try {
-        // Strict wait for persistent storage hydration
-        console.debug("BOOT: Hydrating persistent storage...");
+        // Force-await storage hydration to ensure refresh survival
+        console.debug("BOOT: Syncing mirror storage...");
         await bootstrapMuseumData();
-        console.debug("BOOT: Storage synchronized. Mounting React.");
+        console.debug("BOOT: Mirror ready. Mounting UI.");
         
         const root = ReactDOM.createRoot(rootElement);
         root.render(
@@ -23,8 +23,7 @@ const startApp = async () => {
           </React.StrictMode>
         );
     } catch (e) {
-        console.error("BOOT: Critical Failure", e);
-        // Emergency render if DB is totally broken
+        console.error("BOOT: Critical Persistence Error", e);
         const root = ReactDOM.createRoot(rootElement);
         root.render(<App />);
     }
