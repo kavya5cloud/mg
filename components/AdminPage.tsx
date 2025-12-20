@@ -10,7 +10,7 @@ import {
     getShopOrders, updateShopOrders, 
     getNewsletterEmails, 
     getBookings, 
-    getHomepageGallery, saveHomepageGallery, resetHomepageGallery,
+    getHomepageGallery, saveHomepageGallery, 
     getPageAssets, savePageAssets,
     getStaffMode, setStaffMode,
     getStorageUsage, clearAllAppData 
@@ -87,38 +87,42 @@ const AdminPage: React.FC = () => {
   };
 
   const handleDelete = async (id: string, type: string) => {
-      if (!window.confirm('Confirm Deletion?')) return;
+      if (!window.confirm('Are you sure you want to delete this permanent record?')) return;
       
       setSaveStatus('saving');
-      if (type === 'exhibition') {
-          const newData = exhibitions.filter(e => e.id !== id);
-          await saveExhibitions(newData);
-          setExhibitions(newData);
-      } else if (type === 'artwork') {
-          const newData = artworks.filter(a => a.id !== id);
-          await saveArtworks(newData);
-          setArtworks(newData);
-      } else if (type === 'event') {
-          const newData = events.filter(ev => ev.id !== id);
-          await saveEvents(newData);
-          setEvents(newData);
-      } else if (type === 'collectable') {
-          const newData = collectables.filter(c => c.id !== id);
-          await saveCollectables(newData);
-          setCollectables(newData);
-      } else if (type === 'gallery-image' && activeTrackIdx !== null) {
-          const updatedGallery = [...homepageGallery];
-          updatedGallery[activeTrackIdx].images = updatedGallery[activeTrackIdx].images.filter((img: string) => img !== id);
-          await saveHomepageGallery(updatedGallery);
-          setHomepageGallery(updatedGallery);
-      } else if (type === 'team-member' && pageAssets) {
-          const updatedAssets = { ...pageAssets };
-          updatedAssets.about.team = updatedAssets.about.team.filter(m => m.id !== id);
-          await savePageAssets(updatedAssets);
-          setPageAssets(updatedAssets);
+      try {
+        if (type === 'exhibition') {
+            const newData = exhibitions.filter(e => e.id !== id);
+            await saveExhibitions(newData);
+            setExhibitions(newData);
+        } else if (type === 'artwork') {
+            const newData = artworks.filter(a => a.id !== id);
+            await saveArtworks(newData);
+            setArtworks(newData);
+        } else if (type === 'event') {
+            const newData = events.filter(ev => ev.id !== id);
+            await saveEvents(newData);
+            setEvents(newData);
+        } else if (type === 'collectable') {
+            const newData = collectables.filter(c => c.id !== id);
+            await saveCollectables(newData);
+            setCollectables(newData);
+        } else if (type === 'gallery-image' && activeTrackIdx !== null) {
+            const updatedGallery = [...homepageGallery];
+            updatedGallery[activeTrackIdx].images = updatedGallery[activeTrackIdx].images.filter((img: string) => img !== id);
+            await saveHomepageGallery(updatedGallery);
+            setHomepageGallery(updatedGallery);
+        } else if (type === 'team-member' && pageAssets) {
+            const updatedAssets = { ...pageAssets };
+            updatedAssets.about.team = updatedAssets.about.team.filter(m => m.id !== id);
+            await savePageAssets(updatedAssets);
+            setPageAssets(updatedAssets);
+        }
+        setSaveStatus('saved');
+      } catch (e) {
+        alert("Persistence Error: Could not save deletion.");
+        setSaveStatus('idle');
       }
-      
-      setSaveStatus('saved');
       setTimeout(() => setSaveStatus('idle'), 2000);
       setStorageMB(getStorageUsage());
   };
@@ -136,53 +140,58 @@ const AdminPage: React.FC = () => {
       e.preventDefault();
       setSaveStatus('saving');
       
-      if (editType === 'gallery-image' && activeTrackIdx !== null) {
-          const updatedGallery = [...homepageGallery];
-          if (editItem.oldUrl) {
-              updatedGallery[activeTrackIdx].images = updatedGallery[activeTrackIdx].images.map((img: string) => img === editItem.oldUrl ? editItem.imageUrl : img);
-          } else {
-              updatedGallery[activeTrackIdx].images = [...updatedGallery[activeTrackIdx].images, editItem.imageUrl];
-          }
-          await saveHomepageGallery(updatedGallery);
-      } else if (editType === 'team-member' && pageAssets) {
-          const updatedAssets = { ...pageAssets };
-          const id = editItem.id || Date.now().toString();
-          const teamMemberData = { 
-              id, 
-              name: editItem.name || 'Anonymous Staff', 
-              role: editItem.role || 'Contributor', 
-              imageUrl: editItem.imageUrl || 'https://picsum.photos/400/400' 
-          };
-          if (editItem.id) {
-              updatedAssets.about.team = updatedAssets.about.team.map(m => m.id === id ? teamMemberData : m);
-          } else {
-              updatedAssets.about.team = [...updatedAssets.about.team, teamMemberData];
-          }
-          await savePageAssets(updatedAssets);
-      } else if (editType === 'page-asset' && activeAssetKey && pageAssets) {
-          const [page, key] = activeAssetKey.split('.');
-          const updatedAssets = { ...pageAssets };
-          (updatedAssets as any)[page][key] = editItem.imageUrl || editItem.text;
-          await savePageAssets(updatedAssets);
-      } else {
-          const id = editItem.id || Date.now().toString();
-          const newItem = { ...editItem, id };
-          if (editType === 'exhibition') {
-              const updated = editItem.id ? exhibitions.map(ex => ex.id === id ? newItem : ex) : [...exhibitions, newItem];
-              await saveExhibitions(updated);
-          } else if (editType === 'artwork') {
-              const updated = editItem.id ? artworks.map(art => art.id === id ? newItem : art) : [...artworks, newItem];
-              await saveArtworks(updated);
-          } else if (editType === 'event') {
-              const updated = editItem.id ? events.map(ev => ev.id === id ? newItem : ev) : [...events, newItem];
-              await saveEvents(updated);
-          } else if (editType === 'collectable') {
-              const updated = editItem.id ? collectables.map(c => c.id === id ? newItem : c) : [...collectables, newItem];
-              await saveCollectables(updated);
-          }
+      try {
+        if (editType === 'gallery-image' && activeTrackIdx !== null) {
+            const updatedGallery = [...homepageGallery];
+            if (editItem.oldUrl) {
+                updatedGallery[activeTrackIdx].images = updatedGallery[activeTrackIdx].images.map((img: string) => img === editItem.oldUrl ? editItem.imageUrl : img);
+            } else {
+                updatedGallery[activeTrackIdx].images = [...updatedGallery[activeTrackIdx].images, editItem.imageUrl];
+            }
+            await saveHomepageGallery(updatedGallery);
+        } else if (editType === 'team-member' && pageAssets) {
+            const updatedAssets = { ...pageAssets };
+            const id = editItem.id || Date.now().toString();
+            const teamMemberData = { 
+                id, 
+                name: editItem.name || 'Anonymous Staff', 
+                role: editItem.role || 'Contributor', 
+                imageUrl: editItem.imageUrl || 'https://picsum.photos/400/400' 
+            };
+            if (editItem.id) {
+                updatedAssets.about.team = updatedAssets.about.team.map(m => m.id === id ? teamMemberData : m);
+            } else {
+                updatedAssets.about.team = [...updatedAssets.about.team, teamMemberData];
+            }
+            await savePageAssets(updatedAssets);
+        } else if (editType === 'page-asset' && activeAssetKey && pageAssets) {
+            const [page, key] = activeAssetKey.split('.');
+            const updatedAssets = { ...pageAssets };
+            (updatedAssets as any)[page][key] = editItem.imageUrl || editItem.text;
+            await savePageAssets(updatedAssets);
+        } else {
+            const id = editItem.id || Date.now().toString();
+            const newItem = { ...editItem, id };
+            if (editType === 'exhibition') {
+                const updated = editItem.id ? exhibitions.map(ex => ex.id === id ? newItem : ex) : [...exhibitions, newItem];
+                await saveExhibitions(updated);
+            } else if (editType === 'artwork') {
+                const updated = editItem.id ? artworks.map(art => art.id === id ? newItem : art) : [...artworks, newItem];
+                await saveArtworks(updated);
+            } else if (editType === 'event') {
+                const updated = editItem.id ? events.map(ev => ev.id === id ? newItem : ev) : [...events, newItem];
+                await saveEvents(updated);
+            } else if (editType === 'collectable') {
+                const updated = editItem.id ? collectables.map(c => c.id === id ? newItem : c) : [...collectables, newItem];
+                await saveCollectables(updated);
+            }
+        }
+        setSaveStatus('saved');
+      } catch (e) {
+        alert("Storage error: Refresh and try again.");
+        setSaveStatus('idle');
       }
 
-      setSaveStatus('saved');
       setTimeout(() => setSaveStatus('idle'), 2000);
       setIsEditing(false);
       loadData();
@@ -191,8 +200,13 @@ const AdminPage: React.FC = () => {
   const persistPageAssets = async () => {
     if (!pageAssets) return;
     setSaveStatus('saving');
-    await savePageAssets(pageAssets);
-    setSaveStatus('saved');
+    try {
+        await savePageAssets(pageAssets);
+        setSaveStatus('saved');
+    } catch (e) {
+        alert("Failed to sync database.");
+        setSaveStatus('idle');
+    }
     setTimeout(() => setSaveStatus('idle'), 2000);
   };
 
@@ -307,7 +321,7 @@ const AdminPage: React.FC = () => {
            </div>
            <div className="flex items-center gap-6">
                 <div className="flex flex-col items-end">
-                    <span className="text-[9px] font-black text-gray-500 uppercase">Cache: {storageMB}MB</span>
+                    <span className="text-[9px] font-black text-gray-500 uppercase">Local Storage: {storageMB}MB</span>
                     <div className="w-24 h-1 bg-white/10 rounded-full mt-1 overflow-hidden"><div className="h-full bg-green-500" style={{width: `${usagePercent}%`}} /></div>
                 </div>
                 <button onClick={handleLogout} className="p-3 bg-white/10 hover:bg-red-500 rounded-2xl transition-all"><LogOut className="w-5 h-5" /></button>
@@ -315,7 +329,6 @@ const AdminPage: React.FC = () => {
        </header>
 
        <main className="flex-grow max-w-[1600px] w-full mx-auto p-10">
-           {/* TWO-ROW TAB NAVIGATION AS PER SCREENSHOT */}
            <div className="border-b border-[#F1F5F9] mb-12">
                <div className="flex flex-wrap gap-x-12">
                    {primaryTabs.map(renderTabButton)}
@@ -325,13 +338,12 @@ const AdminPage: React.FC = () => {
                </div>
            </div>
 
-           {/* Global Save Status Notification */}
            {saveStatus !== 'idle' && (
              <div className={`fixed top-24 right-10 z-[70] px-6 py-4 rounded-2xl shadow-2xl flex items-center gap-4 animate-in slide-in-from-right-10 duration-300 ${saveStatus === 'saving' ? 'bg-black text-white' : 'bg-green-500 text-white'}`}>
                 {saveStatus === 'saving' ? <RefreshCw className="w-5 h-5 animate-spin" /> : <Check className="w-5 h-5" />}
                 <div className="flex flex-col">
-                  <span className="text-xs font-black uppercase tracking-widest">{saveStatus === 'saving' ? 'Persisting...' : 'Database Synchronized'}</span>
-                  <span className="text-[10px] opacity-70">{saveStatus === 'saving' ? 'Writing to storage archives' : 'All changes safely stored'}</span>
+                  <span className="text-xs font-black uppercase tracking-widest">{saveStatus === 'saving' ? 'Writing Changes...' : 'System Synchronized'}</span>
+                  <span className="text-[10px] opacity-70">{saveStatus === 'saving' ? 'Committing to persistent storage' : 'All data successfully mirrored'}</span>
                 </div>
              </div>
            )}
@@ -395,17 +407,17 @@ const AdminPage: React.FC = () => {
                                 className={`px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 ${saveStatus === 'saved' ? 'bg-green-500 text-white' : 'bg-black text-white hover:bg-gray-800'}`}
                             >
                                {saveStatus === 'saving' ? <RefreshCw className="w-3 h-3 animate-spin" /> : saveStatus === 'saved' ? <Check className="w-3 h-3" /> : <Save className="w-3 h-3" />}
-                               {saveStatus === 'saving' ? 'Committing...' : saveStatus === 'saved' ? 'Database Updated' : 'Save All Changes'}
+                               {saveStatus === 'saving' ? 'Syncing...' : saveStatus === 'saved' ? 'Saved to DB' : 'Save Changes'}
                            </button>
                        </div>
                        <div className="grid md:grid-cols-2 gap-10">
                            <div className="space-y-6">
                                <div>
-                                   <label className="text-[10px] font-black text-gray-400 uppercase mb-2 block">Opening Hours String</label>
+                                   <label className="text-[10px] font-black text-gray-400 uppercase mb-2 block">Opening Hours</label>
                                    <input className="w-full border-2 p-4 rounded-2xl font-bold" value={pageAssets.visit.hours} onChange={e => { const u = {...pageAssets}; u.visit.hours = e.target.value; setPageAssets(u); }} />
                                </div>
                                <div>
-                                   <label className="text-[10px] font-black text-gray-400 uppercase mb-2 block">Admission & Tickets Info</label>
+                                   <label className="text-[10px] font-black text-gray-400 uppercase mb-2 block">Admission Info</label>
                                    <textarea rows={3} className="w-full border-2 p-4 rounded-2xl text-sm font-bold" value={pageAssets.visit.admissionInfo} onChange={e => { const u = {...pageAssets}; u.visit.admissionInfo = e.target.value; setPageAssets(u); }} />
                                </div>
                                <div>
@@ -413,19 +425,15 @@ const AdminPage: React.FC = () => {
                                    <textarea rows={3} className="w-full border-2 p-4 rounded-2xl text-sm font-bold" value={pageAssets.visit.parkingInfo} onChange={e => { const u = {...pageAssets}; u.visit.parkingInfo = e.target.value; setPageAssets(u); }} />
                                </div>
                                <div>
-                                   <label className="text-[10px] font-black text-gray-400 uppercase mb-2 block">Location Address Text</label>
+                                   <label className="text-[10px] font-black text-gray-400 uppercase mb-2 block">Location Address</label>
                                    <textarea rows={2} className="w-full border-2 p-4 rounded-2xl text-sm font-bold" value={pageAssets.visit.locationText} onChange={e => { const u = {...pageAssets}; u.visit.locationText = e.target.value; setPageAssets(u); }} />
-                               </div>
-                               <div>
-                                   <label className="text-[10px] font-black text-gray-400 uppercase mb-2 block">Google Maps Search Link</label>
-                                   <input className="w-full border-2 p-4 rounded-2xl text-xs font-mono" value={pageAssets.visit.googleMapsLink} onChange={e => { const u = {...pageAssets}; u.visit.googleMapsLink = e.target.value; setPageAssets(u); }} />
                                </div>
                            </div>
                            <div className="space-y-8">
                                <div className="p-6 bg-white rounded-[2rem] border-2 border-gray-100">
                                    <h4 className="text-[10px] font-black uppercase mb-4">Visit Page Hero Photo</h4>
                                    <img src={pageAssets.visit.hero} className="w-full h-48 object-cover rounded-xl mb-4" />
-                                   <button onClick={() => openEditor('page-asset', {imageUrl: pageAssets.visit.hero}, 'visit.hero')} className="w-full bg-black text-white py-4 rounded-xl text-xs font-black uppercase tracking-widest">Update Visit Photo</button>
+                                   <button onClick={() => openEditor('page-asset', {imageUrl: pageAssets.visit.hero}, 'visit.hero')} className="w-full bg-black text-white py-4 rounded-xl text-xs font-black uppercase tracking-widest">Update Image</button>
                                </div>
                            </div>
                        </div>
@@ -437,7 +445,7 @@ const AdminPage: React.FC = () => {
                <div className="space-y-12 animate-in fade-in slide-in-from-bottom-4">
                    {homepageGallery.map((track, idx) => (
                        <div key={idx} className="bg-gray-50 p-10 rounded-[3rem] border-2 border-gray-100">
-                           <div className="flex justify-between items-center mb-8"><h3 className="text-xl font-black uppercase tracking-widest">Scrolling Track {idx+1}</h3><button onClick={() => openEditor('gallery-image', null, idx)} className="bg-black text-white px-4 py-2 rounded-xl text-xs font-black uppercase">Add Photo</button></div>
+                           <div className="flex justify-between items-center mb-8"><h3 className="text-xl font-black uppercase tracking-widest">Gallery Track {idx+1}</h3><button onClick={() => openEditor('gallery-image', null, idx)} className="bg-black text-white px-4 py-2 rounded-xl text-xs font-black uppercase">Add Image</button></div>
                            <div className="flex gap-6 overflow-x-auto pb-6">
                                {track.images.map((img: string) => (
                                    <div key={img} className="w-48 h-48 bg-white border-2 border-gray-100 rounded-[2rem] overflow-hidden relative group shrink-0">
@@ -456,7 +464,6 @@ const AdminPage: React.FC = () => {
 
            {activeTab === 'content' && pageAssets && (
                <div className="max-w-5xl space-y-12 animate-in fade-in slide-in-from-bottom-4">
-                   {/* About Section */}
                    <div className="bg-gray-50 p-10 rounded-[3rem] border-2 border-gray-100">
                        <div className="flex justify-between items-center mb-10 border-b pb-6">
                            <h3 className="text-2xl font-black uppercase tracking-widest flex items-center gap-4"><Info className="w-6 h-6" /> About Page Content</h3>
@@ -466,54 +473,27 @@ const AdminPage: React.FC = () => {
                                 className={`px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 ${saveStatus === 'saved' ? 'bg-green-500 text-white' : 'bg-black text-white hover:bg-gray-800'}`}
                             >
                                {saveStatus === 'saving' ? <RefreshCw className="w-3 h-3 animate-spin" /> : saveStatus === 'saved' ? <Check className="w-3 h-3" /> : <Save className="w-3 h-3" />}
-                               {saveStatus === 'saving' ? 'Committing...' : saveStatus === 'saved' ? 'Database Updated' : 'Save All Changes'}
+                               {saveStatus === 'saving' ? 'Syncing...' : saveStatus === 'saved' ? 'Saved to DB' : 'Save Changes'}
                            </button>
                        </div>
                        <div className="grid md:grid-cols-2 gap-10">
                            <div className="space-y-6">
-                               <div><label className="text-[10px] font-black text-gray-400 uppercase mb-2 block">Hero Intro Title</label><input className="w-full border-2 p-4 rounded-2xl font-bold" value={pageAssets.about.introTitle} onChange={e => { const u = {...pageAssets}; u.about.introTitle = e.target.value; setPageAssets(u); }} /></div>
-                               <div><label className="text-[10px] font-black text-gray-400 uppercase mb-2 block">Description Para</label><textarea rows={6} className="w-full border-2 p-4 rounded-2xl text-sm" value={pageAssets.about.introPara1} onChange={e => { const u = {...pageAssets}; u.about.introPara1 = e.target.value; setPageAssets(u); }} /></div>
+                               <div><label className="text-[10px] font-black text-gray-400 uppercase mb-2 block">Hero Title</label><input className="w-full border-2 p-4 rounded-2xl font-bold" value={pageAssets.about.introTitle} onChange={e => { const u = {...pageAssets}; u.about.introTitle = e.target.value; setPageAssets(u); }} /></div>
+                               <div><label className="text-[10px] font-black text-gray-400 uppercase mb-2 block">Story Para</label><textarea rows={6} className="w-full border-2 p-4 rounded-2xl text-sm" value={pageAssets.about.introPara1} onChange={e => { const u = {...pageAssets}; u.about.introPara1 = e.target.value; setPageAssets(u); }} /></div>
                            </div>
                            <div className="space-y-8">
                                 <div className="p-6 bg-white rounded-[2rem] border-2 border-gray-100">
-                                   <h4 className="text-[10px] font-black uppercase mb-4">About Hero Image</h4>
+                                   <h4 className="text-[10px] font-black uppercase mb-4">About Hero</h4>
                                    <img src={pageAssets.about.hero} className="w-full h-32 object-cover rounded-xl mb-4" />
-                                   <button onClick={() => openEditor('page-asset', {imageUrl: pageAssets.about.hero}, 'about.hero')} className="w-full bg-black text-white py-2 rounded-xl text-[10px] font-black uppercase">Edit Photo</button>
+                                   <button onClick={() => openEditor('page-asset', {imageUrl: pageAssets.about.hero}, 'about.hero')} className="w-full bg-black text-white py-2 rounded-xl text-[10px] font-black uppercase">Edit Image</button>
                                 </div>
                                 <div className="p-6 bg-white rounded-[2rem] border-2 border-gray-100">
-                                   <h4 className="text-[10px] font-black uppercase mb-4">Main Atrium Image</h4>
+                                   <h4 className="text-[10px] font-black uppercase mb-4">Main Atrium</h4>
                                    <img src={pageAssets.about.atrium} className="w-full h-32 object-cover rounded-xl mb-4" />
-                                   <button onClick={() => openEditor('page-asset', {imageUrl: pageAssets.about.atrium}, 'about.atrium')} className="w-full bg-black text-white py-2 rounded-xl text-[10px] font-black uppercase">Edit Photo</button>
+                                   <button onClick={() => openEditor('page-asset', {imageUrl: pageAssets.about.atrium}, 'about.atrium')} className="w-full bg-black text-white py-2 rounded-xl text-[10px] font-black uppercase">Edit Image</button>
                                 </div>
                            </div>
                        </div>
-                   </div>
-
-                   {/* TEAM MANAGEMENT SECTION */}
-                   <div className="bg-gray-50 p-10 rounded-[3rem] border-2 border-gray-100">
-                        <div className="flex justify-between items-center mb-10 border-b pb-6">
-                            <h3 className="text-2xl font-black uppercase tracking-widest flex items-center gap-4"><Users className="w-6 h-6" /> Museum Team</h3>
-                            <button onClick={() => openEditor('team-member')} className="bg-black text-white px-6 py-2 rounded-2xl text-[10px] font-black uppercase flex items-center gap-2">
-                                <UserPlus className="w-4 h-4" /> Add Member
-                            </button>
-                        </div>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                            {pageAssets.about.team.map((member) => (
-                                <div key={member.id} className="bg-white p-6 rounded-[2rem] border-2 border-gray-100 flex items-center gap-4 group">
-                                    <div className="w-16 h-16 rounded-full overflow-hidden shrink-0 border-2 border-gray-50">
-                                        <img src={member.imageUrl} className="w-full h-full object-cover" />
-                                    </div>
-                                    <div className="flex-grow min-w-0">
-                                        <h4 className="font-bold text-sm truncate">{member.name}</h4>
-                                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest truncate">{member.role}</p>
-                                    </div>
-                                    <div className="flex flex-col gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                        <button onClick={() => openEditor('team-member', member)} className="p-2 hover:bg-gray-100 rounded-lg"><Pen className="w-3 h-3" /></button>
-                                        <button onClick={() => handleDelete(member.id, 'team-member')} className="p-2 hover:bg-red-50 text-red-500 rounded-lg"><Trash className="w-3 h-3" /></button>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
                    </div>
                </div>
            )}
@@ -550,75 +530,25 @@ const AdminPage: React.FC = () => {
                 </div>
            )}
 
-           {activeTab === 'collection' && (
-                <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-8 animate-in fade-in">
-                    <button onClick={() => openEditor('artwork')} className="bg-gray-50 border-4 border-dashed border-gray-100 rounded-[2.5rem] aspect-square flex flex-col items-center justify-center text-gray-300 hover:border-black transition-all"><Plus /></button>
-                    {artworks.map(art => (
-                        <div key={art.id} className="bg-white border-2 border-gray-50 rounded-[2.5rem] overflow-hidden relative group aspect-square shadow-sm">
-                            <img src={art.imageUrl} className="w-full h-full object-cover" />
-                            <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-all flex items-center justify-center gap-4"><button onClick={() => openEditor('artwork', art)} className="p-3 bg-white rounded-full"><Pen className="w-4 h-4" /></button><button onClick={() => handleDelete(art.id, 'artwork')} className="p-3 bg-white text-red-600 rounded-full"><Trash className="w-4 h-4" /></button></div>
-                        </div>
-                    ))}
-                </div>
-           )}
-
-           {activeTab === 'newsletter' && (
-                <div className="bg-white border-2 border-gray-100 rounded-[3rem] overflow-hidden shadow-sm animate-in fade-in">
-                    <div className="p-10 border-b bg-gray-50 flex justify-between items-center"><h2 className="text-2xl font-black uppercase tracking-widest">Newsletter Subscribers</h2><span className="bg-black text-white px-4 py-2 rounded-full text-xs font-bold">{newsletterEmails.length} Emails</span></div>
-                    <div className="p-10">
-                         {newsletterEmails.length > 0 ? (
-                             <ul className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                                 {newsletterEmails.map((email, idx) => (
-                                     <li key={idx} className="bg-gray-50 p-4 rounded-xl flex items-center justify-between group">
-                                         <span className="font-bold text-sm">{email}</span>
-                                         <button className="text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"><Trash2 className="w-4 h-4" /></button>
-                                     </li>
-                                 ))}
-                             </ul>
-                         ) : (
-                             <div className="text-center py-20 text-gray-400"><Mail className="w-12 h-12 mx-auto mb-4 opacity-10" /><p>No subscribers recorded yet.</p></div>
-                         )}
-                    </div>
-                </div>
-           )}
-
            {activeTab === 'settings' && (
                <div className="max-w-3xl space-y-10 animate-in fade-in">
                    <div className="bg-gray-50 p-12 rounded-[3rem] border-2 border-gray-100">
                         <div className="flex items-center gap-6 mb-8">
                             <div className="p-5 bg-black text-white rounded-[2rem] shadow-xl"><Database className="w-8 h-8" /></div>
                             <div>
-                                <h2 className="text-3xl font-black tracking-tighter uppercase">Database Architecture</h2>
-                                <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Engine: IndexedDB (High-Capacity)</p>
+                                <h2 className="text-3xl font-black tracking-tighter uppercase">Storage Core</h2>
+                                <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">IndexedDB Persistence</p>
                             </div>
                         </div>
                         
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-10">
-                            <div className="bg-white p-6 rounded-[2rem] border-2 border-gray-50 flex items-center gap-6">
-                                <div className="p-4 bg-gray-100 rounded-2xl"><HardDrive className="w-6 h-6" /></div>
-                                <div>
-                                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Storage Status</p>
-                                    <p className="text-xl font-black">{storageMB} MB Used</p>
-                                </div>
-                            </div>
-                            <div className="bg-white p-6 rounded-[2rem] border-2 border-gray-50 flex items-center gap-6">
-                                <div className="p-4 bg-gray-100 rounded-2xl"><Zap className="w-6 h-6" /></div>
-                                <div>
-                                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Capacity Level</p>
-                                    <p className="text-xl font-black">Unlimited*</p>
-                                </div>
-                            </div>
-                        </div>
-
                         <div className="bg-white p-8 rounded-[2rem] border-2 border-gray-50 mb-10">
-                            <h4 className="font-bold flex items-center gap-2 mb-4"><Info className="w-4 h-4" /> Capacity Advice</h4>
-                            <p className="text-sm text-gray-500 leading-relaxed mb-4">Your museum has been upgraded to <strong>IndexedDB</strong>. This removes the old 5MB restriction. You can now store hundreds of images locally. However, we still recommend keeping individual image sizes under 500KB for the best user performance.</p>
-                            <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden"><div className="h-full bg-green-500 transition-all duration-1000" style={{width: `${usagePercent}%`}} /></div>
+                            <h4 className="font-bold flex items-center gap-2 mb-4"><Info className="w-4 h-4" /> Persistence Note</h4>
+                            <p className="text-sm text-gray-500 leading-relaxed">Your edits are stored permanently in your browser's IndexedDB. We have removed the mirror-based localStorage to prevent silent corruption when uploading high-resolution imagery (like the Atrium). If you clear your browser cache/site-data, your edits will be lost.</p>
                         </div>
 
                         <div className="space-y-4">
-                            <button onClick={() => { if(confirm('Factory Reset? All data will be wiped.')) clearAllAppData(); }} className="w-full bg-red-600 text-white py-5 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-red-700 transition-all shadow-xl shadow-red-100">Factory Wipe Database</button>
-                            <button onClick={() => loadData()} className="w-full border-2 border-black py-5 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-black hover:text-white transition-all">Re-Sync System Data</button>
+                            <button onClick={() => { if(confirm('Factory Reset? This will wipe all your custom edits.')) clearAllAppData(); }} className="w-full bg-red-600 text-white py-5 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-red-700 transition-all shadow-xl shadow-red-100">Hard Wipe Database</button>
+                            <button onClick={() => window.location.reload()} className="w-full border-2 border-black py-5 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-black hover:text-white transition-all">Reload From Storage</button>
                         </div>
                    </div>
                </div>
@@ -632,10 +562,6 @@ const AdminPage: React.FC = () => {
                     <form onSubmit={handleSaveItem} className="space-y-8">
                         {editType === 'collectable' && (
                             <div className="space-y-6">
-                                <div className="flex items-center gap-4 bg-gray-50 p-4 rounded-2xl border border-gray-100 mb-4">
-                                    <div className="p-3 bg-black text-white rounded-full"><Tag className="w-5 h-5" /></div>
-                                    <p className="text-xs font-bold uppercase tracking-widest">Product Catalog Details</p>
-                                </div>
                                 <input required className="w-full border-2 border-gray-100 p-5 rounded-2xl font-bold outline-none focus:border-black" placeholder="Product Name" value={editItem.name || ''} onChange={e => setEditItem((prev:any)=>({...prev, name: e.target.value}))} />
                                 <div className="grid grid-cols-2 gap-4">
                                     <input className="w-full border-2 border-gray-100 p-5 rounded-2xl font-bold outline-none focus:border-black" placeholder="Category" value={editItem.category || ''} onChange={e => setEditItem((prev:any)=>({...prev, category: e.target.value}))} />
@@ -645,53 +571,19 @@ const AdminPage: React.FC = () => {
                                     </div>
                                 </div>
                                 <textarea className="w-full border-2 border-gray-100 p-5 rounded-2xl text-sm outline-none focus:border-black" rows={3} placeholder="Product Description" value={editItem.description || ''} onChange={e => setEditItem((prev:any)=>({...prev, description: e.target.value}))} />
-                                <div className="flex items-center gap-4 bg-gray-50 p-4 rounded-2xl">
-                                    <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 flex-grow">Inventory Status</label>
-                                    <button 
-                                        type="button" 
-                                        onClick={() => setEditItem((prev:any) => ({...prev, inStock: !prev.inStock}))}
-                                        className={`px-6 py-2 rounded-full text-[10px] font-black uppercase tracking-widest transition-all ${editItem.inStock !== false ? 'bg-green-500 text-white' : 'bg-red-500 text-white'}`}
-                                    >
-                                        {editItem.inStock !== false ? 'In Stock' : 'Sold Out'}
-                                    </button>
-                                </div>
                             </div>
                         )}
                         {['exhibition', 'artwork', 'event'].includes(editType!) && (
                             <div className="space-y-6">
-                                <div className="flex items-center gap-4 bg-gray-50 p-4 rounded-2xl border border-gray-100 mb-4">
-                                    <div className="p-3 bg-black text-white rounded-full"><Calendar className="w-5 h-5" /></div>
-                                    <p className="text-xs font-bold uppercase tracking-widest">Record Entry: {editType}</p>
-                                </div>
                                 <input required className="w-full border-2 border-gray-100 p-5 rounded-2xl font-bold outline-none focus:border-black" placeholder="Title / Name" value={editItem.title || ''} onChange={e => setEditItem((prev:any)=>({...prev, title: e.target.value}))} />
                                 <div className="grid grid-cols-2 gap-4">
-                                    <input className="w-full border-2 border-gray-100 p-5 rounded-2xl font-bold outline-none focus:border-black" placeholder="Type / Category" value={editItem.type || editItem.category || ''} onChange={e => setEditItem((prev:any)=>({...prev, type: e.target.value, category: e.target.value}))} />
-                                    {editType === 'event' && <input required className="w-full border-2 border-gray-100 p-5 rounded-2xl font-bold outline-none focus:border-black" placeholder="Date & Time" value={editItem.date || ''} onChange={e => setEditItem((prev:any)=>({...prev, date: e.target.value}))} />}
-                                    {editType === 'exhibition' && <input required className="w-full border-2 border-gray-100 p-5 rounded-2xl font-bold outline-none focus:border-black" placeholder="Date Range" value={editItem.dateRange || ''} onChange={e => setEditItem((prev:any)=>({...prev, dateRange: e.target.value}))} />}
+                                    <input className="w-full border-2 border-gray-100 p-5 rounded-2xl font-bold outline-none focus:border-black" placeholder="Category" value={editItem.type || editItem.category || ''} onChange={e => setEditItem((prev:any)=>({...prev, type: e.target.value, category: e.target.value}))} />
+                                    <input required className="w-full border-2 border-gray-100 p-5 rounded-2xl font-bold outline-none focus:border-black" placeholder="Date/Range" value={editItem.date || editItem.dateRange || ''} onChange={e => setEditItem((prev:any)=>({...prev, date: e.target.value, dateRange: e.target.value}))} />
                                 </div>
-                                {editType === 'event' && (
-                                    <>
-                                        <input required className="w-full border-2 border-gray-100 p-5 rounded-2xl font-bold outline-none focus:border-black" placeholder="Location Room" value={editItem.location || ''} onChange={e => setEditItem((prev:any)=>({...prev, location: e.target.value}))} />
-                                        <div className="space-y-2">
-                                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-2"><MessageSquare className="w-3 h-3"/> Event Description</label>
-                                            <textarea rows={4} className="w-full border-2 border-gray-100 p-5 rounded-2xl text-sm outline-none focus:border-black" placeholder="Describe the event details..." value={editItem.description || ''} onChange={e => setEditItem((prev:any)=>({...prev, description: e.target.value}))} />
-                                        </div>
-                                    </>
-                                )}
-                            </div>
-                        )}
-                        {editType === 'team-member' && (
-                            <div className="space-y-6">
-                                <div className="flex items-center gap-4 bg-gray-50 p-4 rounded-2xl border border-gray-100 mb-4">
-                                    <div className="p-3 bg-black text-white rounded-full"><Users className="w-5 h-5" /></div>
-                                    <p className="text-xs font-bold uppercase tracking-widest">Public Profile Information</p>
-                                </div>
-                                <input required className="w-full border-2 border-gray-100 p-5 rounded-2xl font-bold outline-none focus:border-black" placeholder="Full Professional Name" value={editItem.name || ''} onChange={e => setEditItem((prev:any)=>({...prev, name: e.target.value}))} />
-                                <input required className="w-full border-2 border-gray-100 p-5 rounded-2xl font-bold outline-none focus:border-black" placeholder="Role / Designation" value={editItem.role || ''} onChange={e => setEditItem((prev:any)=>({...prev, role: e.target.value}))} />
                             </div>
                         )}
                         {renderImageInput()}
-                        <div className="flex gap-4 pt-6"><button type="submit" disabled={isCompressing} className="flex-1 bg-black text-white py-5 rounded-2xl font-black uppercase tracking-widest hover:bg-gray-800 disabled:opacity-50">Save To System</button><button type="button" onClick={() => setIsEditing(false)} className="px-10 py-5 border-2 border-gray-100 rounded-2xl font-black uppercase tracking-widest">Cancel</button></div>
+                        <div className="flex gap-4 pt-6"><button type="submit" disabled={isCompressing || saveStatus === 'saving'} className="flex-1 bg-black text-white py-5 rounded-2xl font-black uppercase tracking-widest hover:bg-gray-800 disabled:opacity-50">Save To System</button><button type="button" onClick={() => setIsEditing(false)} className="px-10 py-5 border-2 border-gray-100 rounded-2xl font-black uppercase tracking-widest">Cancel</button></div>
                     </form>
                 </div>
            </div>
