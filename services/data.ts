@@ -3,11 +3,12 @@ import { EXHIBITIONS, ARTWORKS, COLLECTABLES } from '../constants';
 import { Exhibition, Artwork, Collectable, ShopOrder, Review, Booking, PageAssets, Event } from '../types';
 
 // Persistence Config
-const DB_NAME = 'MOCA_GANDHINAGAR_DB_V2'; // Version bump to ensure fresh start
+const DB_NAME = 'MOCA_MUSEUM_FINAL_STORAGE'; 
 const DB_VERSION = 1;
-const STORE_NAME = 'museum_data';
+const STORE_NAME = 'museum_records';
+const INITIALIZED_KEY = 'moca_system_initialized';
 
-// Default Data Structures
+// Default Data Structures (Fallback only)
 const DEFAULT_GALLERY = [
   { speed: 0.1, direction: -1, images: ["https://picsum.photos/id/20/800/800", "https://picsum.photos/id/24/800/800", "https://picsum.photos/id/28/800/800", "https://picsum.photos/id/30/800/800"] },
   { speed: 0.25, direction: 1, images: ["https://picsum.photos/id/36/800/800", "https://picsum.photos/id/38/800/800", "https://picsum.photos/id/42/800/800", "https://picsum.photos/id/48/800/800"] },
@@ -15,24 +16,8 @@ const DEFAULT_GALLERY = [
 ];
 
 const DEFAULT_EVENTS: Event[] = [
-    {
-        id: 'ev1',
-        title: "Curator's Talk: Modernism in Gujarat",
-        type: "Talk",
-        date: "Today, 4:00 PM",
-        location: "Auditorium",
-        imageUrl: "https://picsum.photos/id/20/400/300",
-        description: "Join us for an intimate session discussing the roots of Indian modernism."
-    },
-    {
-        id: 'ev2',
-        title: "Clay & Form: Sculpting Workshop",
-        type: "Workshop",
-        date: "Sat, Oct 12, 11:00 AM",
-        location: "Studio A",
-        imageUrl: "https://picsum.photos/id/30/400/300",
-        description: "A hands-on workshop led by visiting artists from NID."
-    }
+    { id: 'ev1', title: "Curator's Talk: Modernism", type: "Talk", date: "Today, 4:00 PM", location: "Auditorium", imageUrl: "https://picsum.photos/id/20/400/300", description: "Modernism in Gujarat." },
+    { id: 'ev2', title: "Sculpting Workshop", type: "Workshop", date: "Sat, 11:00 AM", location: "Studio A", imageUrl: "https://picsum.photos/id/30/400/300", description: "Hands-on sculpting." }
 ];
 
 const DEFAULT_PAGE_ASSETS: PageAssets = {
@@ -40,40 +25,40 @@ const DEFAULT_PAGE_ASSETS: PageAssets = {
     hero: "https://picsum.photos/id/122/1600/600",
     atrium: "https://picsum.photos/id/238/800/800",
     title: "Our Story",
-    introTitle: "A new cultural landmark in the heart of the Green City.",
-    introPara1: "Established in 2024, the Museum of Contemporary Art Gandhinagar (MOCA) stands as a testament to the evolving cultural landscape of Gujarat.",
-    introPara2: "We believe that modern art is a mirror to society. Our institution is dedicated to presenting the most thought-provoking art of our time.",
+    introTitle: "A new cultural landmark.",
+    introPara1: "Established in 2024, MOCA stands as a testament to the cultural landscape of Gujarat.",
+    introPara2: "We believe art is a mirror to society.",
     missionTitle: "Our Mission",
-    missionDesc: "To inspire creativity and critical thinking through the presentation and collection of modern art.",
+    missionDesc: "To inspire creativity through modern art.",
     globalTitle: "Global Perspective",
-    globalDesc: "While deeply rooted in India, MOCA Gandhinagar fosters an international outlook through worldwide collaborations.",
+    globalDesc: "Fostering international outlook.",
     communityTitle: "Community First",
-    communityDesc: "We are committed to accessibility, striving to make contemporary art accessible to everyone.",
-    archTitle: "Architecture & Space",
-    archPara1: "The MOCA building reflects modernist planning principles with clean lines and raw concrete.",
-    archPara2: "Spanning 40,000 square feet, the space includes flexible halls, a media wing, and a sculpture garden.",
+    communityDesc: "Art for everyone.",
+    archTitle: "Architecture",
+    archPara1: "The building reflects modernist principles.",
+    archPara2: "40,000 square feet of art space.",
     team: [
-      { id: 't1', name: 'Dr. Aarav Patel', role: 'Director & Chief Curator', imageUrl: 'https://picsum.photos/id/64/400/400' },
-      { id: 't2', name: 'Meera Shah', role: 'Head of Education', imageUrl: 'https://picsum.photos/id/65/400/400' }
+      { id: 't1', name: 'Dr. Aarav Patel', role: 'Director', imageUrl: 'https://picsum.photos/id/64/400/400' },
+      { id: 't2', name: 'Meera Shah', role: 'Education', imageUrl: 'https://picsum.photos/id/65/400/400' }
     ]
   },
   visit: { 
     hero: "https://picsum.photos/id/445/1600/800",
-    hours: "Tuesday — Sunday: 10:30 — 18:00",
+    hours: "Tue — Sun: 10:30 — 18:00",
     locationText: "Inside Veer Residency, Gandhinagar Mahudi, Gujarat",
     googleMapsLink: "https://www.google.com/maps/search/?api=1&query=23.506205,72.754318",
-    admissionInfo: "General admission to MOCA Gandhinagar is currently free for all visitors. Pre-registration is recommended.",
-    parkingInfo: "Free visitor parking is available at the Veer Residency complex."
+    admissionInfo: "Admission is currently free. Pre-registration recommended.",
+    parkingInfo: "Free visitor parking is available."
   },
   membership: { hero: "https://picsum.photos/id/1015/600/600" },
   home: { heroBg: "" }
 };
 
-// Internal Synchronous Cache
+// State Cache
 let cache: Record<string, any> = {};
 let dbInstance: IDBDatabase | null = null;
 
-// Initialize Database Connection
+// Initialize Connection
 const initDB = (): Promise<IDBDatabase> => {
     return new Promise((resolve, reject) => {
         if (dbInstance) return resolve(dbInstance);
@@ -88,58 +73,61 @@ const initDB = (): Promise<IDBDatabase> => {
             dbInstance = e.target.result;
             resolve(dbInstance!);
         };
-        request.onerror = (e) => reject(new Error("Failed to open IndexedDB"));
+        request.onerror = (e) => reject(new Error("IndexedDB Blocked"));
     });
 };
 
-// Atomic Seeding Operation
-const seedDatabase = async () => {
-    console.debug("Seed: Starting atomic database initialization...");
-    await savePageAssets(DEFAULT_PAGE_ASSETS);
-    await saveExhibitions(EXHIBITIONS);
-    await saveArtworks(ARTWORKS);
-    await saveCollectables(COLLECTABLES);
-    await saveEvents(DEFAULT_EVENTS);
-    await saveHomepageGallery(DEFAULT_GALLERY);
-    console.debug("Seed: Complete.");
+/**
+ * Perform initial data seeding only ONCE ever.
+ */
+const seedData = async () => {
+    console.warn("SYSTEM: Performing first-time data seed...");
+    await saveToDB('moca_page_assets', DEFAULT_PAGE_ASSETS);
+    await saveToDB('moca_exhibitions', EXHIBITIONS);
+    await saveToDB('moca_artworks', ARTWORKS);
+    await saveToDB('moca_collectables', COLLECTABLES);
+    await saveToDB('moca_events', DEFAULT_EVENTS);
+    await saveToDB('moca_homepage_gallery', DEFAULT_GALLERY);
+    localStorage.setItem(INITIALIZED_KEY, 'true');
 };
 
 /**
- * Main Entry Point for Application Data.
- * MUST be awaited in index.tsx before rendering.
+ * CORE BOOTSTRAP: Must complete before UI render.
  */
 export const bootstrapMuseumData = async () => {
     try {
         const db = await initDB();
         
+        // 1. Check if we have ever initialized this system
+        const isInitialized = localStorage.getItem(INITIALIZED_KEY) === 'true';
+
+        // 2. Load all data from store into memory
         return new Promise<void>((resolve, reject) => {
             const tx = db.transaction(STORE_NAME, 'readonly');
             const store = tx.objectStore(STORE_NAME);
             const request = store.openCursor();
-            let hasRecords = false;
+            let count = 0;
 
             request.onsuccess = (e: any) => {
                 const cursor = e.target.result;
                 if (cursor) {
-                    hasRecords = true;
                     cache[cursor.key] = cursor.value;
+                    count++;
                     cursor.continue();
                 } else {
-                    // Cursor finished
-                    if (!hasRecords) {
-                        // DB is brand new, perform awaited seed
-                        seedDatabase().then(() => resolve()).catch(reject);
+                    // Finished reading
+                    if (!isInitialized || count === 0) {
+                        seedData().then(() => resolve()).catch(reject);
                     } else {
-                        console.debug("Bootstrap: Data loaded from IndexedDB.");
+                        console.debug(`SYSTEM: Loaded ${count} records from persistent storage.`);
                         resolve();
                     }
                 }
             };
-            request.onerror = () => reject(new Error("Bootstrap failed"));
+            request.onerror = () => reject(new Error("Read Error"));
         });
-    } catch (error) {
-        console.error("Critical: Storage System Failure", error);
-        // Fallback to constants if DB fails entirely
+    } catch (err) {
+        console.error("CRITICAL: Storage failure. Reverting to constants.", err);
         cache['moca_page_assets'] = DEFAULT_PAGE_ASSETS;
         cache['moca_exhibitions'] = EXHIBITIONS;
         cache['moca_artworks'] = ARTWORKS;
@@ -147,27 +135,21 @@ export const bootstrapMuseumData = async () => {
 };
 
 const getFromCache = <T>(key: string, defaultValue: T): T => {
-    if (cache[key] !== undefined && cache[key] !== null) return cache[key];
-    return defaultValue;
+    return cache[key] !== undefined ? cache[key] : defaultValue;
 };
 
-/**
- * Core write function. Returns a promise to allow UI to wait.
- */
 const saveToDB = (key: string, data: any): Promise<void> => {
-    cache[key] = data; // Update memory immediately for instant UI feedback
+    // Immediate memory update so UI feels instant
+    cache[key] = data;
+    
     return new Promise(async (resolve, reject) => {
         try {
             const db = await initDB();
             const tx = db.transaction(STORE_NAME, 'readwrite');
             const store = tx.objectStore(STORE_NAME);
             store.put(data, key);
-            
-            tx.oncomplete = () => {
-                console.debug(`Saved: ${key}`);
-                resolve();
-            };
-            tx.onerror = () => reject(new Error(`Save failed for ${key}`));
+            tx.oncomplete = () => resolve();
+            tx.onerror = () => reject();
         } catch (e) {
             reject(e);
         }
@@ -180,6 +162,7 @@ export const getStorageUsage = () => {
 };
 
 export const clearAllAppData = async () => {
+    localStorage.removeItem(INITIALIZED_KEY);
     const db = await initDB();
     const tx = db.transaction(STORE_NAME, 'readwrite');
     tx.objectStore(STORE_NAME).clear();
