@@ -9,7 +9,7 @@ import ShopHighlights from './components/ShopHighlights';
 import VisitInfo from './components/VisitInfo';
 import Footer from './components/Footer';
 import ExhibitionsPage from './components/ExhibitionsPage';
-import CollectionPage from './components/CollectionPage';
+import CollectionPage from './components/CollectionPage'; 
 import CalendarPage from './components/CalendarPage';
 import LoadingScreen from './components/LoadingScreen';
 import BookingPage from './components/BookingPage';
